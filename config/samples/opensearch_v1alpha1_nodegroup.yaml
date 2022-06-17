@@ -1,0 +1,33 @@
+---
+apiVersion: opensearch.my.domain/v1alpha1
+kind: NodeGroup
+metadata:
+  name: cluster-manager
+spec:
+  clusterName: logging
+  replicas: 3
+  roles:
+    - cluster_manager
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 8Gi
+---
+apiVersion: opensearch.my.domain/v1alpha1
+kind: NodeGroup
+metadata:
+  name: data
+spec:
+  clusterName: logging
+  replicas: 2
+  roles:
+    - ingest
+    - data
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 20Gi

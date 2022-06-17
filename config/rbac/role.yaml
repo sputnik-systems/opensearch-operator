@@ -31,3 +31,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - nodegroups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - nodegroups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - nodegroups/status
+  verbs:
+  - get
+  - patch
+  - update

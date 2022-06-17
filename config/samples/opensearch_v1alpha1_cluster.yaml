@@ -1,6 +1,24 @@
 apiVersion: opensearch.my.domain/v1alpha1
 kind: Cluster
 metadata:
-  name: cluster-sample
+  name: logging
 spec:
-  # TODO(user): Add fields here
+  config:
+    plugins:
+      security:
+        ssl:
+          transport:
+            distinguishedName: /OU=SSL,/O=Test,/L=Test,/C=DE
+  securityConfig:
+    internal_users: |
+      ---
+      _meta:
+        type: "internalusers"
+        config_version: 2
+
+      admin:
+        hash: "$2a$10$vPt8Ekmc7pKK7nP/I2izf.c0jgy.WTXvcMDsorjH4jXlD82tlYzD."
+        reserved: true
+        backend_roles:
+        - "admin"
+        description: "admin user"

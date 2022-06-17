@@ -2,119 +2,18 @@ package factory
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 )
-
-func GetClusterSecret(ctx context.Context, rc client.Client, c *opensearchv1alpha1.Cluster, postfix string) (*corev1.Secret, error) {
-	n := GetNamespacedName(c)
-	n.Name += "-" + postfix
-	s := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
-			Namespace: n.Namespace,
-		},
-	}
-	if err := rc.Get(ctx, n, s); err != nil {
-		if !errors.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to get secret with certificates: %w", err)
-		}
-
-		if err = rc.Create(ctx, s); err != nil {
-			return nil, fmt.Errorf("failed to create empty secret object: %w", err)
-		}
-	}
-
-	s.Labels = GetLabels(c, c.GetName())
-
-	if err := controllerutil.SetOwnerReference(c, s, rc.Scheme()); err != nil {
-		return nil, fmt.Errorf("failed to update ownerReference: %w", err)
-	}
-
-	if s.Data == nil {
-		s.Data = make(map[string][]byte)
-	}
-
-	return s, nil
-}
-
-func GenClusterConfigs(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
-	s, err := GetClusterSecret(ctx, rc, c, "securityconfigs")
-	if err != nil {
-		return fmt.Errorf("failed to get cluster secret object: %w", err)
-	}
-
-	if content := c.GetSecurityConfig().GetConfig(); content != nil {
-		s.Data["config.yml"] = []byte(*content)
-	}
-
-	if content := c.GetSecurityConfig().GetActionGroups(); content != nil {
-		s.Data["action_groups.yml"] = []byte(*content)
-	}
-
-	if content := c.GetSecurityConfig().GetInternalUsers(); content != nil {
-		s.Data["internal_users.yml"] = []byte(*content)
-	}
-
-	if content := c.GetSecurityConfig().GetRoles(); content != nil {
-		s.Data["roles.yml"] = []byte(*content)
-	}
-
-	if content := c.GetSecurityConfig().GetRolesMapping(); content != nil {
-		s.Data["roles_mapping.yml"] = []byte(*content)
-	}
-
-	if content := c.GetSecurityConfig().GetTenants(); content != nil {
-		s.Data["tenants.yml"] = []byte(*content)
-	}
-
-	if err := rc.Update(ctx, s); err != nil {
-		return fmt.Errorf("failed to update secret with securityconfigs: %w", err)
-	}
-
-	return nil
-
-}
-
-func GenClusterCerts(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
-	s, err := GetClusterSecret(ctx, rc, c, "certificates")
-	if err != nil {
-		return fmt.Errorf("failed to get clsuter secret object: %w", err)
-	}
-
-	pem := c.GetConfig().GetPlugins().GetSecurity().GetSSL().GetTransport()
-	if err = GetCaCertAndKeyPEM(s, pem); err != nil {
-		return fmt.Errorf("failed to generate CA cert or key: %w", err)
-	}
-
-	if s.Data["admin.pem"], s.Data["admin-key.pem"], err = GetCertAndKeyPEM(s, pem, "ADMIN"); err != nil {
-		return fmt.Errorf("failed to generate admin cert or key: %w", err)
-	}
-
-	if s.Data["client.pem"], s.Data["client-key.pem"], err = GetCertAndKeyPEM(s, pem, "CLIENT"); err != nil {
-		return fmt.Errorf("failed to generate client cert or key: %w", err)
-	}
-
-	if err := rc.Update(ctx, s); err != nil {
-		return fmt.Errorf("failed to update secret with certificates: %w", err)
-	}
-
-	return nil
-}
 
 func GetCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedMailFormatSpec, cn string, sans ...string) ([]byte, []byte, error) {
 	var privKeyPEM []byte
@@ -125,6 +24,10 @@ func GetCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedMai
 		if privKeyPEM, err = GenPrivKeyPEM(); err != nil {
 			return nil, nil, err
 		}
+	}
+
+	if _, ok := s.Data["root-ca.pem"]; !ok {
+		return nil, nil, fmt.Errorf("CA certs doesn't exists yet")
 	}
 
 	certPem, err := GenCertPEM(c, s.Data["root-ca.pem"], s.Data["root-ca-key.pem"], privKeyPEM, cn, sans...)
@@ -155,11 +58,15 @@ func GenCertPEM(c *opensearchv1alpha1.PrivacyEnhancedMailFormatSpec, ca, caPrivK
 	}
 
 	caCertDecoded, _ := pem.Decode(ca)
+	if caCertDecoded == nil || caCertDecoded.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("failed to parse CA cert pem")
+	}
+
 	caCert, _ := x509.ParseCertificate(caCertDecoded.Bytes)
 
 	cert := c.GetCertificate(false)
 	for _, san := range sans {
-		cert.AddSAN(san)
+		cert.AddSubjectAltName(san)
 	}
 	cert.AddCommonName(cn)
 
@@ -208,8 +115,27 @@ func GetCaCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedM
 		}
 	}
 
-	cert := c.GetCertificate(true)
-	caCertPEM, err := GenCaCertPEM(cert.GetX509(), caPrivKeyPEM)
+	var cert *x509.Certificate
+	var caCertPEM []byte
+	if _, ok := s.Data["root-ca.pem"]; !ok {
+		cert = c.GetCertificate(true).GetX509()
+		caCertPEM, err = GenCaCertPEM(cert, caPrivKeyPEM)
+	} else {
+		caCertPEM = s.Data["root-ca.pem"]
+		certBlock, _ := pem.Decode(s.Data["root-ca.pem"])
+		if certBlock == nil || certBlock.Type != "CERTIFICATE" {
+			return fmt.Errorf("failed to decode pem cert body")
+		}
+
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("failed to parse certificate der: %w", err)
+		}
+
+		if time.Now().After(cert.NotAfter) {
+			caCertPEM, err = GenCaCertPEM(cert, caPrivKeyPEM)
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("gen CA cert: %w", err)
 	}

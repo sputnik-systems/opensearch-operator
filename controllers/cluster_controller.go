@@ -53,6 +53,8 @@ type ClusterReconciler struct {
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
+	l.Info("started Cluster reconciling")
+
 	c := &opensearchv1alpha1.Cluster{}
 	err := r.Get(ctx, req.NamespacedName, c)
 	if err != nil {
@@ -75,9 +77,15 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
+	if err := factory.CreateClusterHeadlessService(ctx, r.Client, l, c); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.Update(ctx, c); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	l.Info("finished Cluster reconciling")
 
 	return ctrl.Result{}, nil
 }
@@ -86,7 +94,8 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opensearchv1alpha1.Cluster{}).
+		Owns(&opensearchv1alpha1.NodeGroup{}).
 		Owns(&corev1.Secret{}).
-		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Service{}).
 		Complete(r)
 }

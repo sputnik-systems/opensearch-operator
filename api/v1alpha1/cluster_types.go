@@ -19,12 +19,15 @@ package v1alpha1
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"math/big"
 	"net"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -32,17 +35,13 @@ import (
 
 // ClusterSpec defines the desired state of Cluster
 type ClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	Config         ConfigSpec         `json:"config,omitempty"`
-	SecurityConfig SecurityConfigSpec `json:"security_config,omitempty"`
+	SecurityConfig SecurityConfigSpec `json:"securityConfig,omitempty"`
 }
 
 // ClusterStatus defines the observed state of Cluster
 type ClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	InitialClusterManagerNodes []string `json:"initial_cluster_manager_nodes,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -70,6 +69,35 @@ func init() {
 	SchemeBuilder.Register(&Cluster{}, &ClusterList{})
 }
 
+func (c Cluster) GetSubresourceNamespacedName() types.NamespacedName {
+	kind := strings.ToLower(c.GroupVersionKind().Kind)
+	name := fmt.Sprintf("%s-%s-%s", subresourceNamePrefix, kind, c.GetName())
+	namespace := c.GetNamespace()
+
+	return types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}
+}
+
+func (c Cluster) GetSubresourceLabels() map[string]string {
+	labels := c.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
+	labels["opensearch.my.domain/cluster-name"] = c.GetName()
+
+	return labels
+}
+
+func (c *Cluster) SetInitialClusterManagerNodes(nodeNames ...string) {
+	if len(c.Status.InitialClusterManagerNodes) == 0 {
+		c.Status.InitialClusterManagerNodes = nodeNames
+	}
+}
+
 func (c Cluster) GetConfig() *ConfigSpec {
 	return &c.Spec.Config
 }
@@ -83,24 +111,12 @@ type ConfigSpec struct {
 	Plugins PluginsSpec `json:"plugins,omitempty"`
 }
 
-func (c *ConfigSpec) GetPlugins() *PluginsSpec {
-	return &c.Plugins
-}
-
 type PluginsSpec struct {
 	Security SecuritySpec `json:"security,omitempty"`
 }
 
-func (p *PluginsSpec) GetSecurity() *SecuritySpec {
-	return &p.Security
-}
-
 type SecuritySpec struct {
 	SSL SecureSocketsLayerSpec `json:"ssl,omitempty"`
-}
-
-func (s *SecuritySpec) GetSSL() *SecureSocketsLayerSpec {
-	return &s.SSL
 }
 
 type SecureSocketsLayerSpec struct {
@@ -108,8 +124,8 @@ type SecureSocketsLayerSpec struct {
 	HTTP      PrivacyEnhancedMailFormatSpec `json:"http,omitempty"`
 }
 
-func (s *SecureSocketsLayerSpec) GetTransport() *PrivacyEnhancedMailFormatSpec {
-	return &s.Transport
+func (s *ConfigSpec) GetTransportLayerSSL() *PrivacyEnhancedMailFormatSpec {
+	return &s.Plugins.Security.SSL.Transport
 }
 
 type PrivacyEnhancedMailFormatSpec struct {
@@ -122,7 +138,7 @@ type Certificate struct {
 	cert x509.Certificate
 }
 
-func (c *Certificate) AddSAN(san string) {
+func (c *Certificate) AddSubjectAltName(san string) {
 	kv := strings.Split(san, ":")
 	switch kv[0] {
 	case "DNS":
@@ -142,11 +158,6 @@ func (c *Certificate) AddCommonName(cn string) {
 func (c *Certificate) GetX509() *x509.Certificate {
 	return &c.cert
 }
-
-const (
-	caCertLifeTimeYears = 10
-	certLifeTimeYears   = 1
-)
 
 func (pem *PrivacyEnhancedMailFormatSpec) GetCertificate(isCa bool) *Certificate {
 	c := &Certificate{}
@@ -168,7 +179,7 @@ func (pem *PrivacyEnhancedMailFormatSpec) GetCertificate(isCa bool) *Certificate
 			c.cert.IPAddresses = make([]net.IP, 0)
 
 			for _, value := range pem.SANs {
-				c.AddSAN(value)
+				c.AddSubjectAltName(value)
 			}
 		}
 
@@ -201,6 +212,7 @@ func (pem *PrivacyEnhancedMailFormatSpec) GetDistinguishedName() pkix.Name {
 
 // SecurityConfig is defining opensearch security config files
 type SecurityConfigSpec struct {
+	// +kubebuilder:default=true
 	Enabled       bool    `json:"enabled,omitempty"`
 	ActionGroups  *string `json:"action_groups,omitempty"`
 	Config        *string `json:"config,omitempty"`
@@ -210,89 +222,35 @@ type SecurityConfigSpec struct {
 	Tenants       *string `json:"tenants,omitempty"`
 }
 
-func (sc *SecurityConfigSpec) IsEnabled() bool {
-	return sc.Enabled
-}
-
-func (sc *SecurityConfigSpec) GetActionGroups() *string {
-	if sc.ActionGroups == nil {
-		content := `---
-_meta:
-  type: "actiongroups"
-  config_version: 2
-`
-
-		sc.ActionGroups = &content
+func (c *Cluster) GetHeadlessService() *corev1.Service {
+	n := c.GetSubresourceNamespacedName()
+	l := c.GetSubresourceLabels()
+	l["opensearch.my.domain/nogegroup-cluster-manager-role"] = "exists"
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name + "-headless",
+			Namespace: n.Namespace,
+			Labels:    l,
+		},
+		Spec: corev1.ServiceSpec{
+			Type:                     corev1.ServiceTypeClusterIP,
+			ClusterIP:                "None",
+			PublishNotReadyAddresses: true,
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "transport",
+					Protocol: corev1.ProtocolTCP,
+					Port:     9300,
+				},
+				{
+					Name:     "http",
+					Protocol: corev1.ProtocolTCP,
+					Port:     9200,
+				},
+			},
+			Selector: l,
+		},
 	}
 
-	return sc.ActionGroups
-}
-
-func (sc *SecurityConfigSpec) GetConfig() *string {
-	if sc.Config == nil {
-		content := `---
-_meta:
-  type: "config"
-  config_version: 2
-`
-
-		sc.Config = &content
-	}
-
-	return sc.Config
-}
-
-func (sc *SecurityConfigSpec) GetInternalUsers() *string {
-	if sc.InternalUsers == nil {
-		content := `---
-_meta:
-  type: "internalusers"
-  config_version: 2
-`
-
-		sc.InternalUsers = &content
-	}
-
-	return sc.InternalUsers
-}
-
-func (sc *SecurityConfigSpec) GetRoles() *string {
-	if sc.Roles == nil {
-		content := `---
-_meta:
-  type: "roles"
-  config_version: 2
-`
-
-		sc.Roles = &content
-	}
-
-	return sc.Roles
-}
-
-func (sc *SecurityConfigSpec) GetRolesMapping() *string {
-	if sc.RolesMapping == nil {
-		content := `---
-_meta:
-  type: "rolesmapping"
-  config_version: 2
-`
-
-		sc.RolesMapping = &content
-	}
-	return sc.RolesMapping
-}
-
-func (sc *SecurityConfigSpec) GetTenants() *string {
-	if sc.Tenants == nil {
-		content := `---
-_meta:
-  type: "tenants"
-  config_version: 2
-`
-
-		sc.Tenants = &content
-	}
-
-	return sc.Tenants
+	return svc
 }
