@@ -2,4 +2,5 @@
 resources:
 - opensearch_v1alpha1_cluster.yaml
 - opensearch_v1alpha1_nodegroup.yaml
+- opensearch_v1alpha1_dashboard.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

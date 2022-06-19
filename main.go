@@ -92,6 +92,13 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "NodeGroup")
 		os.Exit(1)
 	}
+	if err = (&controllers.DashboardReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Dashboard")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

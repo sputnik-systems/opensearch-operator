@@ -22,3 +22,16 @@ spec:
         backend_roles:
         - "admin"
         description: "admin user"
+
+      kibanaserver:
+        hash: "$2a$10$2i5NzKBp5LlnA6EA45zIBOHHycaxRwRGCjyEUjCtLWXsTRuI/4rYi"
+        reserved: true
+        description: "kibanaserver user"
+      
+      kibanaro:
+        hash: "$2a$10$2i5NzKBp5LlnA6EA45zIBOHHycaxRwRGCjyEUjCtLWXsTRuI/4rYi"
+        reserved: true
+        backend_roles:
+        - "kibanauser"
+        - "readall"
+        description: "kibanaro user"

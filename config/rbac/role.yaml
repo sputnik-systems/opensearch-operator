@@ -34,6 +34,32 @@ rules:
 - apiGroups:
   - opensearch.my.domain
   resources:
+  - dashboards
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - dashboards/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - dashboards/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
   - nodegroups
   verbs:
   - create

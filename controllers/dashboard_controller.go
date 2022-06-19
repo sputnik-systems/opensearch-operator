@@ -35,35 +35,54 @@ import (
 	"github.com/preved911/opensearch-operator/controllers/factory"
 )
 
-// NodeGroupReconciler reconciles a NodeGroup object
-type NodeGroupReconciler struct {
+// DashboardReconciler reconciles a Dashboard object
+type DashboardReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups/finalizers,verbs=update
+//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the NodeGroup object against the actual cluster state, and then
+// the Dashboard object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *DashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	l.Info("started NodeGroup reconciling")
+	l.Info("started Dashboard reconciling")
 
-	ng := &opensearchv1alpha1.NodeGroup{}
-	err := r.Get(ctx, req.NamespacedName, ng)
+	d := &opensearchv1alpha1.Dashboard{}
+	err := r.Get(ctx, req.NamespacedName, d)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
+		}
+
+		l.Error(err, "failed to get Dashboard object for reconclie")
+
+		return ctrl.Result{}, err
+	}
+
+	n := types.NamespacedName{Namespace: d.Namespace, Name: d.Spec.NodeGroupName}
+	ng := &opensearchv1alpha1.NodeGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+	}
+	if err = r.Get(ctx, n, ng); err != nil {
+		if errors.IsNotFound(err) {
+			l.Error(err, "corresponding NodeGroup resource not found")
+
+			return ctrl.Result{}, err
 		}
 
 		l.Error(err, "failed to get NodeGroup object for reconclie")
@@ -71,81 +90,39 @@ func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	n := types.NamespacedName{Namespace: ng.Namespace, Name: ng.Spec.ClusterName}
-	c := &opensearchv1alpha1.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
-			Namespace: n.Namespace,
-		},
-	}
-	err = r.Get(ctx, n, c)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			l.Error(err, "corresponding Cluster resource not found")
-
-			return ctrl.Result{}, err
-		}
-
-		l.Error(err, "failed to get Cluster object for reconclie")
-
-		return ctrl.Result{}, err
-	}
-
-	if ng.GetRoles().IsClusterManager() {
-		c.SetInitialClusterManagerNodes(ng.GetNodeNames()...)
-		if err := r.Status().Update(ctx, c); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
-	if err = controllerutil.SetOwnerReference(c, ng, r.Client.Scheme()); err != nil {
+	if err = controllerutil.SetOwnerReference(ng, d, r.Client.Scheme()); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	controllerutil.AddFinalizer(ng, "foregroundDeletion")
+	controllerutil.AddFinalizer(d, "foregroundDeletion")
 
-	if err := factory.GenNodeGroupConfig(ctx, r.Client, l, c, ng); err != nil {
+	if err := factory.GenDashboardConfig(ctx, r.Client, l, ng, d); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := factory.GenNodeGroupCerts(ctx, r.Client, l, c, ng); err != nil {
+	if err := factory.CreateDashboardService(ctx, r.Client, l, d); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := factory.CreateNodeGroupService(ctx, r.Client, l, ng); err != nil {
+	if err := factory.CreateDashboardDeployment(ctx, r.Client, l, ng, d); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := factory.CreateNodeGroupHeadlessService(ctx, r.Client, l, ng); err != nil {
+	if err := r.Update(ctx, d); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// ng.SetServiceNameStatus()
-	// if err := r.Status().Update(ctx, ng); err != nil {
-	// 	return ctrl.Result{}, err
-	// }
-
-	if err := factory.CreateNodeGroupStatefulSet(ctx, r.Client, l, c, ng); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.Update(ctx, ng); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	l.Info("finished NodeGroup reconciling")
+	l.Info("finished Dashboard reconciling")
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *NodeGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *DashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&opensearchv1alpha1.NodeGroup{}).
-		Owns(&opensearchv1alpha1.Dashboard{}).
-		Owns(&corev1.Secret{}).
+		For(&opensearchv1alpha1.Dashboard{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
-		Owns(&appsv1.StatefulSet{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

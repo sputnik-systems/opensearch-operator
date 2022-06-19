@@ -80,3 +80,21 @@ func ReplaceStatefulSet(ctx context.Context, rc client.Client, obj *appsv1.State
 
 	return nil
 }
+
+func ReplaceDeployment(ctx context.Context, rc client.Client, obj *appsv1.Deployment) error {
+	if err := rc.Create(ctx, obj); err != nil {
+		spec := obj.Spec
+		n := client.ObjectKeyFromObject(obj)
+		if err := rc.Get(ctx, n, obj); err != nil {
+			return fmt.Errorf("failed to get StatefulSet object: %w", err)
+
+		}
+
+		obj.Spec = spec
+		if err := rc.Update(ctx, obj); err != nil {
+			return fmt.Errorf("failed to update StatefulSet object: %w", err)
+		}
+	}
+
+	return nil
+}

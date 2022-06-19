@@ -53,8 +53,7 @@ type NodeGroupSpec struct {
 
 // NodeGroupStatus defines the observed state of NodeGroup
 type NodeGroupStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ServiceName string `json:"serviceName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -87,7 +86,7 @@ type NodeGroupSpecRoles []NodeGroupSpecRole
 // +kubebuilder:validation:Enum=cluster_manager;ingest;data;remote_cluster_client
 type NodeGroupSpecRole string
 
-func (ng NodeGroup) GetSubresourceNamespacedName() types.NamespacedName {
+func (ng *NodeGroup) GetSubresourceNamespacedName() types.NamespacedName {
 	kind := strings.ToLower(ng.GroupVersionKind().Kind)
 	name := fmt.Sprintf("%s-%s-%s", subresourceNamePrefix, kind, ng.GetName())
 	namespace := ng.GetNamespace()
@@ -98,14 +97,14 @@ func (ng NodeGroup) GetSubresourceNamespacedName() types.NamespacedName {
 	}
 }
 
-func (ng NodeGroup) GetSubresourceLabels() map[string]string {
+func (ng *NodeGroup) GetSubresourceLabels() map[string]string {
 	labels := ng.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
 
 	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/cluster-name"] = ng.Spec.ClusterName
+	labels["opensearch.my.domain/cluster-name"] = ng.GetClusterName()
 	labels["opensearch.my.domain/nodegroup-name"] = ng.GetName()
 
 	for _, role := range ng.Spec.Roles {
@@ -115,6 +114,23 @@ func (ng NodeGroup) GetSubresourceLabels() map[string]string {
 	}
 
 	return labels
+}
+
+func (ng *NodeGroup) GetClusterName() string {
+	return ng.Spec.ClusterName
+}
+
+func (ng *NodeGroup) GetDiscoverySeedHosts() string {
+	return fmt.Sprintf("%s-cluster-%s-headless", subresourceNamePrefix, ng.Spec.ClusterName)
+}
+
+func (ng *NodeGroup) GetClusterCertificatesSecretName() string {
+	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, ng.GetClusterName())
+}
+
+func (ng *NodeGroup) SetServiceNameStatus() {
+	n := ng.GetSubresourceNamespacedName()
+	ng.Status.ServiceName = n.Name
 }
 
 type NodeGroupServiceSpec struct {
@@ -337,11 +353,11 @@ func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "cluster.name",
-			Value: ng.Spec.ClusterName,
+			Value: ng.GetClusterName(),
 		},
 		{
 			Name:  "discovery.seed_hosts",
-			Value: fmt.Sprintf("%s-cluster-%s-headless", subresourceNamePrefix, ng.Spec.ClusterName),
+			Value: ng.GetDiscoverySeedHosts(),
 		},
 		{
 			Name: "node.name",
@@ -368,7 +384,7 @@ func (ng *NodeGroup) GetVolumes() []corev1.Volume {
 			Name: "cluster-certs",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, ng.Spec.ClusterName),
+					SecretName: ng.GetClusterCertificatesSecretName(),
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "root-ca.pem",
