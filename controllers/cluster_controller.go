@@ -95,6 +95,7 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opensearchv1alpha1.Cluster{}).
 		Owns(&opensearchv1alpha1.NodeGroup{}).
+		Owns(&opensearchv1alpha1.IndexStateManagementPolicy{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.Service{}).
 		Complete(r)

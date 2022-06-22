@@ -104,14 +104,14 @@ func GenPrivKeyPEM() ([]byte, error) {
 	return adminPrivKeyBufferPEM.Bytes(), nil
 }
 
-func GetCaCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedMailFormatSpec) error {
+func GetCaCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedMailFormatSpec) ([]byte, []byte, error) {
 	var caPrivKeyPEM []byte
 	var ok bool
 	var err error
 
 	if caPrivKeyPEM, ok = s.Data["root-ca-key.pem"]; !ok {
 		if caPrivKeyPEM, err = GenCaPrivKeyPEM(); err != nil {
-			return err
+			return nil, nil, err
 		}
 	}
 
@@ -124,12 +124,12 @@ func GetCaCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedM
 		caCertPEM = s.Data["root-ca.pem"]
 		certBlock, _ := pem.Decode(s.Data["root-ca.pem"])
 		if certBlock == nil || certBlock.Type != "CERTIFICATE" {
-			return fmt.Errorf("failed to decode pem cert body")
+			return nil, nil, fmt.Errorf("failed to decode pem cert body")
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			return fmt.Errorf("failed to parse certificate der: %w", err)
+			return nil, nil, fmt.Errorf("failed to parse certificate der: %w", err)
 		}
 
 		if time.Now().After(cert.NotAfter) {
@@ -137,17 +137,14 @@ func GetCaCertAndKeyPEM(s *corev1.Secret, c *opensearchv1alpha1.PrivacyEnhancedM
 		}
 	}
 	if err != nil {
-		return fmt.Errorf("gen CA cert: %w", err)
+		return nil, nil, fmt.Errorf("gen CA cert: %w", err)
 	}
 
 	if s.Data == nil {
 		s.Data = make(map[string][]byte)
 	}
 
-	s.Data["root-ca-key.pem"] = caPrivKeyPEM
-	s.Data["root-ca.pem"] = caCertPEM
-
-	return nil
+	return caCertPEM, caPrivKeyPEM, nil
 }
 
 func GenCaCertPEM(c *x509.Certificate, privKeyPEM []byte) ([]byte, error) {

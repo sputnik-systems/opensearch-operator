@@ -60,7 +60,7 @@ func GenClusterCerts(ctx context.Context, rc client.Client, l logr.Logger, c *op
 	}
 
 	pem := c.GetConfig().GetTransportLayerSSL()
-	if err = GetCaCertAndKeyPEM(s, pem); err != nil {
+	if s.Data["root-ca.pem"], s.Data["root-ca-key.pem"], err = GetCaCertAndKeyPEM(s, pem); err != nil {
 		return fmt.Errorf("failed to generate CA cert or key: %w", err)
 	}
 

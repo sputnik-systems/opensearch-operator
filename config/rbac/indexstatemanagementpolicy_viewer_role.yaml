@@ -1,0 +1,20 @@
+# permissions for end users to view indexstatemanagementpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: indexstatemanagementpolicy-viewer-role
+rules:
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies/status
+  verbs:
+  - get

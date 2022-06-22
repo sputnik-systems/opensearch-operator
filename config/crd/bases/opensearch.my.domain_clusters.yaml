@@ -90,8 +90,6 @@ spec:
           status:
             description: ClusterStatus defines the observed state of Cluster
             properties:
-              discovery_seed_hosts:
-                type: string
               initial_cluster_manager_nodes:
                 items:
                   type: string

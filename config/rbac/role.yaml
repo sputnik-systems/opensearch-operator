@@ -60,6 +60,32 @@ rules:
 - apiGroups:
   - opensearch.my.domain
   resources:
+  - indexstatemanagementpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - opensearch.my.domain
+  resources:
   - nodegroups
   verbs:
   - create
