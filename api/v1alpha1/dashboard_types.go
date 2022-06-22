@@ -90,7 +90,6 @@ func (d Dashboard) GetSubresourceLabels() map[string]string {
 	}
 
 	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/nodegroup-name"] = d.Spec.NodeGroupName
 	labels["opensearch.my.domain/dashboard-name"] = d.GetName()
 
 	return labels

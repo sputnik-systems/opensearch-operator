@@ -437,6 +437,19 @@ func (in *NodeGroupSpec) DeepCopyInto(out *NodeGroupSpec) {
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Affinity != nil {
+		in, out := &in.Affinity, &out.Affinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Tolerations != nil {
+		in, out := &in.Tolerations, &out.Tolerations
+		*out = make([]v1.Toleration, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	in.Resources.DeepCopyInto(&out.Resources)
 	if in.ExtraEnvVars != nil {
 		in, out := &in.ExtraEnvVars, &out.ExtraEnvVars
 		*out = make([]v1.EnvVar, len(*in))
@@ -446,6 +459,13 @@ func (in *NodeGroupSpec) DeepCopyInto(out *NodeGroupSpec) {
 	}
 	if in.InitContainers != nil {
 		in, out := &in.InitContainers, &out.InitContainers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ExtraContainers != nil {
+		in, out := &in.ExtraContainers, &out.ExtraContainers
 		*out = make([]v1.Container, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])

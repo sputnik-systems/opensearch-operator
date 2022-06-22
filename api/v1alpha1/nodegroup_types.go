@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -46,8 +47,12 @@ type NodeGroupSpec struct {
 	ReadinessProbe            *corev1.Probe                    `json:"readinessProbe,omitempty"`
 	StartupProbe              *corev1.Probe                    `json:"startupProbe,omitempty"`
 	SecurityContext           *corev1.PodSecurityContext       `json:"securityContext,omitempty"`
+	Affinity                  *corev1.Affinity                 `json:"affinity,omitempty"`
+	Tolerations               []corev1.Toleration              `json:"tolerations,omitempty"`
+	Resources                 corev1.ResourceRequirements      `json:"resources,omitempty"`
 	ExtraEnvVars              []corev1.EnvVar                  `json:"extraEnvVars,omitempty"`
 	InitContainers            []corev1.Container               `json:"initContainers,omitempty"`
+	ExtraContainers           []corev1.Container               `json:"extraContainers,omitempty"`
 	PersistentVolumeClaimSpec corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaimSpec"`
 }
 
@@ -287,6 +292,7 @@ func (ng *NodeGroup) GetContainers() []corev1.Container {
 				},
 			},
 			Env:            ng.GetEnvVars(),
+			Resources:      ng.Spec.Resources,
 			VolumeMounts:   ng.GetVolumeMounts(),
 			LivenessProbe:  ng.GetLivenessProbe(),
 			ReadinessProbe: ng.GetReadinessProbe(),
@@ -350,6 +356,24 @@ func (ng *NodeGroup) GetVolumeMounts() []corev1.VolumeMount {
 }
 
 func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
+	javaOptsEnvVar := corev1.EnvVar{
+		Name: "JAVA_OPTS",
+	}
+	if javaOptsXmx, ok := ng.Spec.Resources.Limits["memory"]; ok {
+		value, _ := javaOptsXmx.AsScale(resource.Mega)
+		bytes, _ := value.AsCanonicalBytes(nil)
+		javaOptsEnvVar.Value = fmt.Sprintf("-Xmx%sm", bytes)
+	}
+	if javaOptsXms, ok := ng.Spec.Resources.Requests["memory"]; ok {
+		value, _ := javaOptsXms.AsScale(resource.Mega)
+		bytes, _ := value.AsCanonicalBytes(nil)
+		if javaOptsEnvVar.Value == "" {
+			javaOptsEnvVar.Value = fmt.Sprintf("-Xms%sm", bytes)
+		} else {
+			javaOptsEnvVar.Value = fmt.Sprintf("%s -Xms%sm", javaOptsEnvVar.Value, bytes)
+		}
+	}
+
 	envs := []corev1.EnvVar{
 		{
 			Name:  "cluster.name",
@@ -371,6 +395,10 @@ func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
 			Name:  "node.roles",
 			Value: ng.GetRoles().String(),
 		},
+	}
+
+	if javaOptsEnvVar.Value != "" {
+		envs = append(envs, javaOptsEnvVar)
 	}
 
 	return append(envs, ng.Spec.ExtraEnvVars...)
@@ -527,6 +555,8 @@ func (ng *NodeGroup) GetStatefulSet() *appsv1.StatefulSet {
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: ng.GetPodSecurityContext(),
+					Affinity:        ng.Spec.Affinity,
+					Tolerations:     ng.Spec.Tolerations,
 					InitContainers:  ng.GetInitContainers(),
 					Containers:      ng.GetContainers(),
 					Volumes:         ng.GetVolumes(),
