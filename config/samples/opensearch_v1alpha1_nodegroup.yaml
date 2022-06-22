@@ -1,0 +1,60 @@
+---
+apiVersion: opensearch.my.domain/v1alpha1
+kind: NodeGroup
+metadata:
+  name: cluster-manager
+spec:
+  clusterName: logging
+  replicas: 3
+  roles:
+    - cluster_manager
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 8Gi
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: opensearch.my.domain/nodegroup-name
+            operator: In
+            values:
+            - cluster-manager
+        topologyKey: kubernetes.io/hostname
+  tolerations:
+    - operator: "Exists"
+  resources:
+    limits:
+      memory: 4Gi
+    requests:
+      memory: 2Gi
+---
+apiVersion: opensearch.my.domain/v1alpha1
+kind: NodeGroup
+metadata:
+  name: data
+spec:
+  clusterName: logging
+  replicas: 2
+  roles:
+    - ingest
+    - data
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 20Gi
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: opensearch.my.domain/nodegroup-name
+            operator: In
+            values:
+            - data
+        topologyKey: kubernetes.io/hostname

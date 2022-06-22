@@ -1,0 +1,24 @@
+# permissions for end users to edit indexstatemanagementpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: indexstatemanagementpolicy-editor-role
+rules:
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensearch.my.domain
+  resources:
+  - indexstatemanagementpolicies/status
+  verbs:
+  - get

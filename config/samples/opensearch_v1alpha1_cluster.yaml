@@ -1,0 +1,37 @@
+apiVersion: opensearch.my.domain/v1alpha1
+kind: Cluster
+metadata:
+  name: logging
+spec:
+  config:
+    plugins:
+      security:
+        ssl:
+          transport:
+            distinguishedName: /OU=SSL,/O=Test,/L=Test,/C=DE
+  securityConfig:
+    internal_users: |
+      ---
+      _meta:
+        type: "internalusers"
+        config_version: 2
+
+      admin:
+        hash: "$2a$10$vPt8Ekmc7pKK7nP/I2izf.c0jgy.WTXvcMDsorjH4jXlD82tlYzD."
+        reserved: true
+        backend_roles:
+        - "admin"
+        description: "admin user"
+
+      kibanaserver:
+        hash: "$2a$10$2i5NzKBp5LlnA6EA45zIBOHHycaxRwRGCjyEUjCtLWXsTRuI/4rYi"
+        reserved: true
+        description: "kibanaserver user"
+      
+      kibanaro:
+        hash: "$2a$10$2i5NzKBp5LlnA6EA45zIBOHHycaxRwRGCjyEUjCtLWXsTRuI/4rYi"
+        reserved: true
+        backend_roles:
+        - "kibanauser"
+        - "readall"
+        description: "kibanaro user"

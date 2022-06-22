@@ -1,0 +1,51 @@
+apiVersion: opensearch.my.domain/v1alpha1
+kind: IndexStateManagementPolicy
+metadata:
+  name: example
+spec:
+  clusterName: logging
+  body: |
+    {
+      "policy": {
+        "description": "ingesting logs",
+        "default_state": "ingest",
+        "states": [
+          {
+            "name": "search",
+            "actions": [],
+            "transitions": [
+              {
+                "state_name": "delete",
+                "conditions": {
+                  "min_index_age": "5m"
+                }
+              }
+            ]
+          },
+          {
+            "name": "ingest",
+            "actions": [
+              {
+                "rollover": {
+                  "min_doc_count": 5
+                }
+              }
+            ],
+            "transitions": [
+              {
+                "state_name": "search"
+              }
+            ]
+          },
+          {
+            "name": "delete",
+            "actions": [
+              {
+                "delete": {}
+              }
+            ],
+            "transitions": []
+          }
+        ]
+      }
+    }

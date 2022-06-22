@@ -1,0 +1,12 @@
+apiVersion: opensearch.my.domain/v1alpha1
+kind: Dashboard
+metadata:
+  name: default
+spec:
+  nodeGroupName: data
+  replicas: 2
+  extraEnvVars:
+    - name: OPENSEARCH_USERNAME
+      value: "admin"
+    - name: OPENSEARCH_PASSWORD
+      value: "password"
