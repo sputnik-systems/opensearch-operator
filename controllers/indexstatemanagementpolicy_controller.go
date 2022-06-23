@@ -81,6 +81,19 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 		if errors.IsNotFound(err) {
 			l.Error(err, "corresponding Cluster resource not found")
 
+			if !p.DeletionTimestamp.IsZero() {
+				l.Info("deleting IndexStateManagementPolicy resource without finalizators run")
+
+				controllerutil.RemoveFinalizer(
+					p, opensearchv1alpha1.IndexStateManagementPolicyProtectionFinalizer,
+				)
+				if err := r.Update(ctx, p); err != nil {
+					return ctrl.Result{}, err
+				}
+
+				return ctrl.Result{}, nil
+			}
+
 			return ctrl.Result{}, err
 		}
 
@@ -122,7 +135,9 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, err
 		}
 
-		controllerutil.RemoveFinalizer(p, "opensearch.my.domain/policy")
+		controllerutil.RemoveFinalizer(
+			p, opensearchv1alpha1.IndexStateManagementPolicyProtectionFinalizer,
+		)
 		if err := r.Update(ctx, p); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -152,7 +167,9 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	controllerutil.AddFinalizer(p, "opensearch.my.domain/policy")
+	controllerutil.AddFinalizer(
+		p, opensearchv1alpha1.IndexStateManagementPolicyProtectionFinalizer,
+	)
 	if err := r.Update(ctx, p); err != nil {
 		return ctrl.Result{}, err
 	}

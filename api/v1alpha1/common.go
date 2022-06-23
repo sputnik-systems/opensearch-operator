@@ -4,6 +4,8 @@ const (
 	caCertLifeTimeYears   = 10
 	certLifeTimeYears     = 1
 	subresourceNamePrefix = "opensearch"
+
+	IndexStateManagementPolicyProtectionFinalizer = "opensearch.my.domain/ism-policy-protection"
 )
 
 var (
