@@ -73,8 +73,10 @@ func (p *IndexStateManagementPolicy) GetClusterName() string {
 }
 
 func (p *IndexStateManagementPolicy) GetClusterAddress() string {
-	// return fmt.Sprintf("https://%s-cluster-%s-headless:9200/_plugins/_ism/policies/%s", subresourceNamePrefix, p.GetClusterName(), p.GetName())
-	return fmt.Sprintf("https://localhost:9200/_plugins/_ism/policies/%s", p.GetName())
+	return fmt.Sprintf(
+		"https://%s-cluster-%s-headless.%s.svc:9200/_plugins/_ism/policies/%s",
+		subresourceNamePrefix, p.GetClusterName(), p.GetNamespace(), p.GetName(),
+	)
 }
 
 func (p *IndexStateManagementPolicy) GetPolicyBytesBuffer() io.Reader {

@@ -89,10 +89,6 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, err
 	}
 
-	if err := controllerutil.SetOwnerReference(c, p, r.Client.Scheme()); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to update ownerReference: %w", err)
-	}
-
 	n.Name = p.GetClusterCertificatesSecretName()
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -150,6 +146,10 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 
 	if err := r.Status().Update(ctx, p); err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if err := controllerutil.SetOwnerReference(c, p, r.Client.Scheme()); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
 	controllerutil.AddFinalizer(p, "opensearch.my.domain/policy")
