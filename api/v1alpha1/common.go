@@ -45,8 +45,9 @@ curl --cacert /usr/share/opensearch/config/root-ca.pem \
 `,
 	}
 
-	runAsNonRoot       = true
-	privileged         = true
-	runAsUser    int64 = 1000
-	fsGroup      int64 = 1000
+	runAsNonRoot          = true
+	privileged            = true
+	runAsUser       int64 = 1000
+	fsGroup         int64 = 1000
+	defaultMode0755 int32 = 0755
 )

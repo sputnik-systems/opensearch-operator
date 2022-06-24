@@ -416,6 +416,11 @@ func (in *NodeGroupSpec) DeepCopyInto(out *NodeGroupSpec) {
 		*out = make(NodeGroupSpecRoles, len(*in))
 		copy(*out, *in)
 	}
+	if in.Plugins != nil {
+		in, out := &in.Plugins, &out.Plugins
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	in.ServiceSpec.DeepCopyInto(&out.ServiceSpec)
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
@@ -467,6 +472,20 @@ func (in *NodeGroupSpec) DeepCopyInto(out *NodeGroupSpec) {
 	if in.ExtraContainers != nil {
 		in, out := &in.ExtraContainers, &out.ExtraContainers
 		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ExtraVolumeMounts != nil {
+		in, out := &in.ExtraVolumeMounts, &out.ExtraVolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ExtraVolumes != nil {
+		in, out := &in.ExtraVolumes, &out.ExtraVolumes
+		*out = make([]v1.Volume, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

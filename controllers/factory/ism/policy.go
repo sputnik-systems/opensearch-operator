@@ -64,7 +64,7 @@ func AddPolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.IndexSt
 
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Errorf("failed to read unsuccessful response body: %w", err)
+			return fmt.Errorf("failed to read unsuccessful response body: %w", err)
 		}
 
 		l.Error(fmt.Errorf("body: %s", string(b)), "policy creation request failed")
@@ -75,7 +75,7 @@ func AddPolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.IndexSt
 	var meta PolicyMetadata
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Errorf("failed to read response body: %w", err)
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 	if err := json.Unmarshal(b, &meta); err != nil {
 		return fmt.Errorf("failed to serialize response body: %w", err)
@@ -126,7 +126,7 @@ func RemovePolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.Inde
 
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Errorf("failed to read unsuccessful response body: %w", err)
+			return fmt.Errorf("failed to read unsuccessful response body: %w", err)
 		}
 
 		l.Error(fmt.Errorf("body: %s", string(b)), "policy creation request failed")

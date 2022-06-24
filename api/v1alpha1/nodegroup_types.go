@@ -33,10 +33,12 @@ import (
 // NodeGroupSpec defines the desired state of NodeGroup
 type NodeGroupSpec struct {
 	// ClusterName is specify which Cluster resource corresponds to this NodeGroup
-	ClusterName string               `json:"clusterName"`
-	Roles       NodeGroupSpecRoles   `json:"roles"`
-	ServiceSpec NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
-	Replicas    int                  `json:"replicas"`
+	ClusterName     string               `json:"clusterName"`
+	Roles           NodeGroupSpecRoles   `json:"roles"`
+	Plugins         []string             `json:"plugins,omitempty"`
+	ExtraConfigBody string               `json:"extraConfigBody,omitempty"`
+	ServiceSpec     NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
+	Replicas        int                  `json:"replicas"`
 	// +kubebuilder:default="Parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	// +kubebuilder:default="opensearchproject/opensearch:2.0.1"
@@ -53,6 +55,8 @@ type NodeGroupSpec struct {
 	ExtraEnvVars              []corev1.EnvVar                  `json:"extraEnvVars,omitempty"`
 	InitContainers            []corev1.Container               `json:"initContainers,omitempty"`
 	ExtraContainers           []corev1.Container               `json:"extraContainers,omitempty"`
+	ExtraVolumeMounts         []corev1.VolumeMount             `json:"extraVolumeMounts,omitempty"`
+	ExtraVolumes              []corev1.Volume                  `json:"extraVolumes,omitempty"`
 	PersistentVolumeClaimSpec corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaimSpec"`
 }
 
@@ -109,7 +113,7 @@ func (ng *NodeGroup) GetSubresourceLabels() map[string]string {
 	}
 
 	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/cluster-name"] = ng.GetClusterName()
+	labels["opensearch.my.domain/cluster-name"] = ng.Spec.ClusterName
 	labels["opensearch.my.domain/nodegroup-name"] = ng.GetName()
 
 	for _, role := range ng.Spec.Roles {
@@ -121,16 +125,12 @@ func (ng *NodeGroup) GetSubresourceLabels() map[string]string {
 	return labels
 }
 
-func (ng *NodeGroup) GetClusterName() string {
-	return ng.Spec.ClusterName
-}
-
 func (ng *NodeGroup) GetDiscoverySeedHosts() string {
 	return fmt.Sprintf("%s-cluster-%s-headless", subresourceNamePrefix, ng.Spec.ClusterName)
 }
 
 func (ng *NodeGroup) GetClusterCertificatesSecretName() string {
-	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, ng.GetClusterName())
+	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, ng.Spec.ClusterName)
 }
 
 func (ng *NodeGroup) SetServiceNameStatus() {
@@ -265,7 +265,7 @@ func (ng *NodeGroup) GetInitContainers() []corev1.Container {
 }
 
 func (ng *NodeGroup) GetContainers() []corev1.Container {
-	return []corev1.Container{
+	containers := []corev1.Container{
 		{
 			Name:            "opensearch",
 			Image:           ng.Spec.Image,
@@ -279,6 +279,7 @@ func (ng *NodeGroup) GetContainers() []corev1.Container {
 				RunAsNonRoot: &runAsNonRoot,
 				RunAsUser:    &runAsUser,
 			},
+			Command: []string{"/usr/local/bin/docker-entrypoint.sh"},
 			Ports: []corev1.ContainerPort{
 				{
 					Name:          "transport",
@@ -299,10 +300,12 @@ func (ng *NodeGroup) GetContainers() []corev1.Container {
 			StartupProbe:   ng.GetStartupProbe(),
 		},
 	}
+
+	return append(containers, ng.Spec.ExtraContainers...)
 }
 
 func (ng *NodeGroup) GetVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "data",
 			MountPath: "/usr/share/opensearch/data",
@@ -311,6 +314,11 @@ func (ng *NodeGroup) GetVolumeMounts() []corev1.VolumeMount {
 			Name:      "config",
 			MountPath: "/usr/share/opensearch/config/opensearch.yml",
 			SubPath:   "opensearch.yml",
+		},
+		{
+			Name:      "scripts",
+			MountPath: "/usr/local/bin/docker-entrypoint.sh",
+			SubPath:   "docker-entrypoint.sh",
 		},
 		{
 			Name:      "cluster-certs",
@@ -353,6 +361,8 @@ func (ng *NodeGroup) GetVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "esnode-key.pem",
 		},
 	}
+
+	return append(volumeMounts, ng.Spec.ExtraVolumeMounts...)
 }
 
 func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
@@ -377,7 +387,7 @@ func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "cluster.name",
-			Value: ng.GetClusterName(),
+			Value: ng.Spec.ClusterName,
 		},
 		{
 			Name:  "discovery.seed_hosts",
@@ -407,7 +417,7 @@ func (ng *NodeGroup) GetEnvVars() []corev1.EnvVar {
 func (ng *NodeGroup) GetVolumes() []corev1.Volume {
 	n := ng.GetSubresourceNamespacedName()
 
-	return []corev1.Volume{
+	volumes := []corev1.Volume{
 		{
 			Name: "cluster-certs",
 			VolumeSource: corev1.VolumeSource{
@@ -476,7 +486,26 @@ func (ng *NodeGroup) GetVolumes() []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: "scripts",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: n.Name,
+					},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "docker-entrypoint.sh",
+							Path: "docker-entrypoint.sh",
+						},
+					},
+					DefaultMode: &defaultMode0755,
+				},
+			},
+		},
 	}
+
+	return append(volumes, ng.Spec.ExtraVolumes...)
 }
 
 func (ng *NodeGroup) GetLivenessProbe() *corev1.Probe {
