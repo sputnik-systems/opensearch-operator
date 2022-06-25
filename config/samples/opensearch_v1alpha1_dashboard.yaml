@@ -7,6 +7,12 @@ spec:
   replicas: 2
   extraEnvVars:
     - name: OPENSEARCH_USERNAME
-      value: "admin"
+      valueFrom:
+        secretKeyRef:
+          name: opensearch-creds
+          key: kibana_user
     - name: OPENSEARCH_PASSWORD
-      value: "password"
+      valueFrom:
+        secretKeyRef:
+          name: opensearch-creds
+          key: kibana_password
