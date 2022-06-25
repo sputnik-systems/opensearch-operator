@@ -68,14 +68,10 @@ func init() {
 	SchemeBuilder.Register(&IndexStateManagementPolicy{}, &IndexStateManagementPolicyList{})
 }
 
-func (p *IndexStateManagementPolicy) GetClusterName() string {
-	return p.Spec.ClusterName
-}
-
 func (p *IndexStateManagementPolicy) GetClusterAddress() string {
 	return fmt.Sprintf(
 		"https://%s-cluster-%s-headless.%s.svc:9200/_plugins/_ism/policies/%s",
-		subresourceNamePrefix, p.GetClusterName(), p.GetNamespace(), p.GetName(),
+		subresourceNamePrefix, p.Spec.ClusterName, p.GetNamespace(), p.GetName(),
 	)
 }
 
@@ -93,5 +89,5 @@ func (p *IndexStateManagementPolicy) GetPolicyBytesSHA1() (string, error) {
 }
 
 func (p *IndexStateManagementPolicy) GetClusterCertificatesSecretName() string {
-	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, p.GetClusterName())
+	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, p.Spec.ClusterName)
 }

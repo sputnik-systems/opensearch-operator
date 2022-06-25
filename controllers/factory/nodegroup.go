@@ -179,20 +179,14 @@ cluster.initial_cluster_manager_nodes:
 - {{ . }}
 {{- end }}
 
-# Bind to all interfaces because we don't know what IP address Docker will assign to us.
 network.host: 0.0.0.0
-
-# Setting network.host to a non-loopback address enables the annoying bootstrap checks. "Single-node" mode disables them again.
-# discovery.type: single-node
-# Start OpenSearch Security Demo Configuration
-# WARNING: revise all the lines below before you go into production
 
 plugins.security.ssl.transport.pemcert_filepath: esnode.pem
 plugins.security.ssl.transport.pemkey_filepath: esnode-key.pem
 plugins.security.ssl.transport.pemtrustedcas_filepath: root-ca.pem
 plugins.security.ssl.transport.enforce_hostname_verification: false
 
-plugins.security.ssl.http.enabled: {{ .HTTPEnabled }}
+plugins.security.ssl.http.enabled: true
 plugins.security.ssl.http.pemcert_filepath: esnode.pem
 plugins.security.ssl.http.pemkey_filepath: esnode-key.pem
 plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
@@ -223,15 +217,18 @@ plugins.security.system_indices.indices: [
   ".opendistro-notebooks",
   ".opendistro-asynchronous-search-response*",
 ]
+
+{{ .ExtraConfigBody }}
+`
+	nodeGroupEntrypointTemplate = `#!/usr/bin/env bash
+
+set -euo pipefail
+{{ range . }}
+./bin/opensearch-plugin install --batch {{ . }}
+{{ end }}
+bash opensearch-docker-entrypoint.sh
 `
 )
-
-type NodeGroupConfig struct {
-	DiscoverySeedHosts         string
-	InitialClusterManagerNodes []string
-	DistinguishedName          string
-	HTTPEnabled                bool
-}
 
 func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, ng *opensearchv1alpha1.NodeGroup) error {
 	n := ng.GetSubresourceNamespacedName()
@@ -250,30 +247,42 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 
 	tmpl, err := template.New("").Parse(nodeGroupConfigTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to parse template: %w", err)
+		return fmt.Errorf("failed to parse opensearch.yml template: %w", err)
 	}
 
-	dn := c.GetConfig().
-		GetTransportLayerSSL().
-		GetDistinguishedName().
-		String()
-	cvs := NodeGroupConfig{
+	distinguishedName := c.GetConfig().GetTransportLayerSSL().GetDistinguishedName()
+	values := struct {
+		DiscoverySeedHosts         string
+		InitialClusterManagerNodes []string
+		DistinguishedName          string
+		ExtraConfigBody            string
+	}{
 		DiscoverySeedHosts:         ng.GetDiscoverySeedHosts(),
 		InitialClusterManagerNodes: c.Status.InitialClusterManagerNodes,
-		DistinguishedName:          dn,
-		HTTPEnabled:                true,
+		DistinguishedName:          distinguishedName.String(),
+		ExtraConfigBody:            ng.Spec.ExtraConfigBody,
 	}
-
-	configBody := new(bytes.Buffer)
-	if err := tmpl.Execute(configBody, cvs); err != nil {
-		return fmt.Errorf("failed to execute template: %w", err)
+	body := new(bytes.Buffer)
+	if err := tmpl.Execute(body, values); err != nil {
+		return fmt.Errorf("failed to execute opensearch.yml template: %w", err)
 	}
 
 	if _, ok := cm.Data["opensearch.yml"]; !ok {
 		cm.Data = make(map[string]string)
 	}
+	cm.Data["opensearch.yml"] = string(body.Bytes())
 
-	cm.Data["opensearch.yml"] = string(configBody.Bytes())
+	body = new(bytes.Buffer)
+	tmpl, err = template.New("").Parse(nodeGroupEntrypointTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse docker-entrypoint.sh template: %w", err)
+	}
+
+	if err := tmpl.Execute(body, ng.Spec.Plugins); err != nil {
+		return fmt.Errorf("failed to execute docker-entrypoint.sh template: %w", err)
+	}
+	cm.Data["docker-entrypoint.sh"] = string(body.Bytes())
+
 	if err := ReplaceConfigMap(ctx, rc, cm); err != nil {
 		return fmt.Errorf("failed to replace configmap object: %w", err)
 	}

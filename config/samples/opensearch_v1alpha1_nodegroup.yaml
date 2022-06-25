@@ -6,14 +6,12 @@ metadata:
 spec:
   clusterName: logging
   replicas: 3
+  plugins:
+    - repository-s3
   roles:
     - cluster_manager
-  persistentVolumeClaimSpec:
-    accessModes:
-    - "ReadWriteOnce"
-    resources:
-      requests:
-        storage: 8Gi
+  extraConfigBody: |
+    s3.client.default.endpoint: storage.yandexcloud.net
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -31,6 +29,46 @@ spec:
       memory: 4Gi
     requests:
       memory: 2Gi
+  initContainers:
+    - name: keystore
+      image: opensearchproject/opensearch:2.0.1
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - |
+          #!/bin/bash
+
+          opensearch-keystore create
+          echo $AWS_ACCESS_KEY_ID | /usr/share/opensearch/bin/opensearch-keystore add --stdin s3.client.default.access_key
+          echo $AWS_SECRET_ACCESS_KEY | /usr/share/opensearch/bin/opensearch-keystore add --stdin s3.client.default.secret_key
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: opensearch-creds
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: opensearch-creds
+              key: aws_secret_access_key
+      volumeMounts:
+        - name: keystore
+          mountPath: /usr/share/opensearch/config
+  extraVolumeMounts:
+    - name: keystore
+      mountPath: /usr/share/opensearch/config/opensearch.keystore
+      subPath: opensearch.keystore
+  extraVolumes:
+    - name: keystore
+      emptyDir: {}
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 8Gi
 ---
 apiVersion: opensearch.my.domain/v1alpha1
 kind: NodeGroup
@@ -42,12 +80,10 @@ spec:
   roles:
     - ingest
     - data
-  persistentVolumeClaimSpec:
-    accessModes:
-    - "ReadWriteOnce"
-    resources:
-      requests:
-        storage: 20Gi
+  plugins:
+    - repository-s3
+  extraConfigBody: |
+    s3.client.default.endpoint: storage.yandexcloud.net
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -58,3 +94,43 @@ spec:
             values:
             - data
         topologyKey: kubernetes.io/hostname
+  initContainers:
+    - name: keystore
+      image: opensearchproject/opensearch:2.0.1
+      command:
+        - /bin/bash
+      args:
+        - -c
+        - |
+          #!/bin/bash
+
+          opensearch-keystore create
+          echo $AWS_ACCESS_KEY_ID | /usr/share/opensearch/bin/opensearch-keystore add --stdin s3.client.default.access_key
+          echo $AWS_SECRET_ACCESS_KEY | /usr/share/opensearch/bin/opensearch-keystore add --stdin s3.client.default.secret_key
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: opensearch-creds
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: opensearch-creds
+              key: aws_secret_access_key
+      volumeMounts:
+        - name: keystore
+          mountPath: /usr/share/opensearch/config
+  extraVolumeMounts:
+    - name: keystore
+      mountPath: /usr/share/opensearch/config/opensearch.keystore
+      subPath: opensearch.keystore
+  extraVolumes:
+    - name: keystore
+      emptyDir: {}
+  persistentVolumeClaimSpec:
+    accessModes:
+    - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: 20Gi
