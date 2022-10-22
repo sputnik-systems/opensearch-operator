@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -32,9 +33,10 @@ import (
 
 // DashboardSpec defines the desired state of Dashboard
 type DashboardSpec struct {
-	NodeGroupName string               `json:"nodeGroupName"`
-	Replicas      int                  `json:"replicas"`
-	ServiceSpec   NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
+	NodeGroupName               string               `json:"nodeGroupName"`
+	ClientCertificateSecretName string               `json:"clientCertificateSecretName"`
+	Replicas                    int                  `json:"replicas"`
+	ServiceSpec                 NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
 	// +kubebuilder:default="opensearchproject/opensearch-dashboards:2.0.1"
 	Image           string            `json:"image,omitempty"`
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
@@ -72,7 +74,7 @@ func init() {
 	SchemeBuilder.Register(&Dashboard{}, &DashboardList{})
 }
 
-func (d Dashboard) GetSubresourceNamespacedName() types.NamespacedName {
+func (d *Dashboard) GetSubresourceNamespacedName() types.NamespacedName {
 	kind := strings.ToLower(d.GroupVersionKind().Kind)
 	name := fmt.Sprintf("%s-%s-%s", subresourceNamePrefix, kind, d.GetName())
 	namespace := d.GetNamespace()
@@ -83,7 +85,7 @@ func (d Dashboard) GetSubresourceNamespacedName() types.NamespacedName {
 	}
 }
 
-func (d Dashboard) GetSubresourceLabels() map[string]string {
+func (d *Dashboard) GetSubresourceLabels() map[string]string {
 	labels := d.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
@@ -93,6 +95,10 @@ func (d Dashboard) GetSubresourceLabels() map[string]string {
 	labels["opensearch.my.domain/dashboard-name"] = d.GetName()
 
 	return labels
+}
+
+func (d *Dashboard) GetCertificateSecretName() string {
+	return d.Spec.ClientCertificateSecretName
 }
 
 func (d *Dashboard) GetService() *corev1.Service {
@@ -173,17 +179,17 @@ func (d *Dashboard) GetContainers() []corev1.Container {
 					SubPath:   "opensearch_dashboards.yml",
 				},
 				{
-					Name:      "cluster-certs",
+					Name:      "client-certs",
 					MountPath: "/usr/share/opensearch-dashboards/config/root-ca.pem",
 					SubPath:   "root-ca.pem",
 				},
 				{
-					Name:      "cluster-certs",
+					Name:      "client-certs",
 					MountPath: "/usr/share/opensearch-dashboards/config/client.pem",
 					SubPath:   "client.pem",
 				},
 				{
-					Name:      "cluster-certs",
+					Name:      "client-certs",
 					MountPath: "/usr/share/opensearch-dashboards/config/client-key.pem",
 					SubPath:   "client-key.pem",
 				},
@@ -243,6 +249,28 @@ func (d *Dashboard) GetDeployment() *appsv1.Deployment {
 					Containers: d.GetContainers(),
 					Volumes: []corev1.Volume{
 						{
+							Name: "client-certs",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: d.Spec.ClientCertificateSecretName,
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "ca.crt",
+											Path: "root-ca.pem",
+										},
+										{
+											Key:  "tls.crt",
+											Path: "client.pem",
+										},
+										{
+											Key:  "tls.key",
+											Path: "client-key.pem",
+										},
+									},
+								},
+							},
+						},
+						{
 							Name: "config",
 							VolumeSource: corev1.VolumeSource{
 								ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -265,4 +293,15 @@ func (d *Dashboard) GetDeployment() *appsv1.Deployment {
 	}
 
 	return deploy
+}
+
+func (d *Dashboard) GetRuntimeObject() client.Object {
+	n := d.GetSubresourceNamespacedName()
+
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+	}
 }

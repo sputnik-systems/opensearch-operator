@@ -16,68 +16,6 @@ import (
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 )
 
-func GenNodeGroupCerts(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, ng *opensearchv1alpha1.NodeGroup) error {
-	cs, err := GetClusterSecret(ctx, rc, c, "certificates")
-	if err != nil {
-		return fmt.Errorf("failed to get Cluster secret object: %w", err)
-	}
-
-	ngs, err := GetNodeGroupSecret(ctx, rc, ng)
-	if err != nil {
-		return fmt.Errorf("failed to get NodeGroup secret object: %w", err)
-	}
-
-	var sans []string
-	n := ng.GetSubresourceNamespacedName()
-	for i := 0; i < ng.GetReplicas(); i++ {
-		sans = append(sans, fmt.Sprintf("DNS:%s-%d", n.Name, i))
-	}
-	sans = append(sans, "DNS:localhost")
-	sans = append(sans, fmt.Sprintf("DNS:%s", n.Name))
-	sans = append(sans, fmt.Sprintf("DNS:%s.%s", n.Name, n.Namespace))
-	sans = append(sans, fmt.Sprintf("DNS:%s.%s.svc", n.Name, n.Namespace))
-	sans = append(sans, fmt.Sprintf("DNS:%s-headless", n.Name))
-	sans = append(sans, fmt.Sprintf("DNS:%s-headless.%s", n.Name, n.Namespace))
-	sans = append(sans, fmt.Sprintf("DNS:%s-headless.%s.svc", n.Name, n.Namespace))
-
-	sans = append(sans, fmt.Sprintf("DNS:%s", ng.GetDiscoverySeedHosts()))
-	sans = append(sans, fmt.Sprintf("DNS:%s.%s", ng.GetDiscoverySeedHosts(), n.Namespace))
-	sans = append(sans, fmt.Sprintf("DNS:%s.%s.svc", ng.GetDiscoverySeedHosts(), n.Namespace))
-
-	pem := c.GetConfig().GetTransportLayerSSL()
-	if ngs.Data["esnode.pem"], ngs.Data["esnode-key.pem"], err = GetCertAndKeyPEM(cs, pem, ng.GetDiscoverySeedHosts(), sans...); err != nil {
-		return fmt.Errorf("failed to generate admin cert or key: %w", err)
-	}
-
-	if err := ReplaceSecret(ctx, rc, ngs); err != nil {
-		return fmt.Errorf("failed to update certificates: %w", err)
-	}
-
-	return nil
-}
-
-func GetNodeGroupSecret(ctx context.Context, rc client.Client, ng *opensearchv1alpha1.NodeGroup) (*corev1.Secret, error) {
-	n := ng.GetSubresourceNamespacedName()
-	s := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      n.Name,
-			Namespace: n.Namespace,
-		},
-	}
-
-	s.Labels = ng.GetSubresourceLabels()
-
-	if err := controllerutil.SetOwnerReference(ng, s, rc.Scheme()); err != nil {
-		return nil, fmt.Errorf("failed to update ownerReference: %w", err)
-	}
-
-	if s.Data == nil {
-		s.Data = make(map[string][]byte)
-	}
-
-	return s, nil
-}
-
 func CreateNodeGroupService(ctx context.Context, rc client.Client, l logr.Logger, ng *opensearchv1alpha1.NodeGroup) error {
 	svc := ng.GetService()
 
@@ -85,7 +23,7 @@ func CreateNodeGroupService(ctx context.Context, rc client.Client, l logr.Logger
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceService(ctx, rc, svc); err != nil {
+	if err := replaceService(ctx, rc, svc); err != nil {
 		return fmt.Errorf("failed to replace service: %w", err)
 	}
 
@@ -103,7 +41,7 @@ func CreateNodeGroupHeadlessService(ctx context.Context, rc client.Client, l log
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceService(ctx, rc, svc); err != nil {
+	if err := replaceService(ctx, rc, svc); err != nil {
 		return fmt.Errorf("failed to replace headless service: %w", err)
 	}
 
@@ -112,6 +50,28 @@ func CreateNodeGroupHeadlessService(ctx context.Context, rc client.Client, l log
 
 func CreateNodeGroupStatefulSet(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, ng *opensearchv1alpha1.NodeGroup) error {
 	sts := ng.GetStatefulSet()
+	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "admin-certs",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: c.GetAdminCertificateSecretName(),
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "tls.crt",
+						Path: "admin.pem",
+					},
+					{
+						Key:  "tls.key",
+						Path: "admin-key.pem",
+					},
+				},
+			},
+		},
+	})
+
+	sts.ObjectMeta.Labels["opensearch.my.domain/nogegroup-certificate-secret-name"] = ng.GetCertificateSecretName()
+	sts.ObjectMeta.Labels["opensearch.my.domain/admin-certificate-secret-name"] = c.GetAdminCertificateSecretName()
+
 	if sc := c.GetSecurityConfig(); sc.Enabled {
 		vn := "cluster-security-config"
 		mp := "/usr/share/opensearch/config/opensearch-security"
@@ -165,7 +125,7 @@ func CreateNodeGroupStatefulSet(ctx context.Context, rc client.Client, l logr.Lo
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceStatefulSet(ctx, rc, sts); err != nil {
+	if err := replaceStatefulSet(ctx, rc, sts); err != nil {
 		return fmt.Errorf("failed to replace StatefulSet: %w", err)
 	}
 
@@ -195,10 +155,10 @@ plugins.security.allow_unsafe_democertificates: true
 plugins.security.allow_default_init_securityindex: true
 
 plugins.security.nodes_dn:
-- CN={{ .DiscoverySeedHosts }},{{ .DistinguishedName }}
+- {{ .NodeGroupDN }}
 
 plugins.security.authcz.admin_dn:
-- CN=ADMIN,{{ .DistinguishedName }}
+- {{ .AdminDN }}
 
 plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
@@ -250,16 +210,25 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 		return fmt.Errorf("failed to parse opensearch.yml template: %w", err)
 	}
 
-	distinguishedName := c.GetConfig().GetTransportLayerSSL().GetDistinguishedName()
+	ngcs, err := getCertificateDN(ctx, rc, ng.GetCertificateSecretName(), n.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to parse nodgroup certificate subject: %w", err)
+	}
+	cacs, err := getCertificateDN(ctx, rc, c.GetAdminCertificateSecretName(), n.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to parse clsuter admin certificate subject: %w", err)
+	}
 	values := struct {
 		DiscoverySeedHosts         string
 		InitialClusterManagerNodes []string
-		DistinguishedName          string
+		NodeGroupDN                string
+		AdminDN                    string
 		ExtraConfigBody            string
 	}{
 		DiscoverySeedHosts:         ng.GetDiscoverySeedHosts(),
 		InitialClusterManagerNodes: c.Status.InitialClusterManagerNodes,
-		DistinguishedName:          distinguishedName.String(),
+		NodeGroupDN:                ngcs,
+		AdminDN:                    cacs,
 		ExtraConfigBody:            ng.Spec.ExtraConfigBody,
 	}
 	body := new(bytes.Buffer)
@@ -283,7 +252,7 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 	}
 	cm.Data["docker-entrypoint.sh"] = string(body.Bytes())
 
-	if err := ReplaceConfigMap(ctx, rc, cm); err != nil {
+	if err := replaceConfigMap(ctx, rc, cm); err != nil {
 		return fmt.Errorf("failed to replace configmap object: %w", err)
 	}
 

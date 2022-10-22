@@ -87,7 +87,3 @@ func (p *IndexStateManagementPolicy) GetPolicyBytesSHA1() (string, error) {
 
 	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
 }
-
-func (p *IndexStateManagementPolicy) GetClusterCertificatesSecretName() string {
-	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, p.Spec.ClusterName)
-}

@@ -35,6 +35,8 @@ spec:
           spec:
             description: DashboardSpec defines the desired state of Dashboard
             properties:
+              clientCertificateSecretName:
+                type: string
               extraEnvVars:
                 items:
                   description: EnvVar represents an environment variable present in
@@ -161,6 +163,7 @@ spec:
                     type: string
                 type: object
             required:
+            - clientCertificateSecretName
             - nodeGroupName
             - replicas
             type: object

@@ -14,72 +14,7 @@ import (
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 )
 
-func GenClusterConfigs(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
-	s, err := GetClusterSecret(ctx, rc, c, "securityconfigs")
-	if err != nil {
-		return fmt.Errorf("failed to get cluster secret object: %w", err)
-	}
-
-	sc := c.GetSecurityConfig()
-	if sc.Config != nil {
-		s.Data["config.yml"] = []byte(*sc.Config)
-	}
-
-	if sc.ActionGroups != nil {
-		s.Data["action_groups.yml"] = []byte(*sc.ActionGroups)
-	}
-
-	if sc.InternalUsers != nil {
-		s.Data["internal_users.yml"] = []byte(*sc.InternalUsers)
-	}
-
-	if sc.Roles != nil {
-		s.Data["roles.yml"] = []byte(*sc.Roles)
-	}
-
-	if sc.RolesMapping != nil {
-		s.Data["roles_mapping.yml"] = []byte(*sc.RolesMapping)
-	}
-
-	if sc.Tenants != nil {
-		s.Data["tenants.yml"] = []byte(*sc.Tenants)
-	}
-
-	if err = ReplaceSecret(ctx, rc, s); err != nil {
-		return fmt.Errorf("failed to replace securityconfigs: %w", err)
-	}
-
-	return nil
-
-}
-
-func GenClusterCerts(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
-	s, err := GetClusterSecret(ctx, rc, c, "certificates")
-	if err != nil {
-		return fmt.Errorf("failed to get clsuter secret object: %w", err)
-	}
-
-	pem := c.GetConfig().GetTransportLayerSSL()
-	if s.Data["root-ca.pem"], s.Data["root-ca-key.pem"], err = GetCaCertAndKeyPEM(s, pem); err != nil {
-		return fmt.Errorf("failed to generate CA cert or key: %w", err)
-	}
-
-	if s.Data["admin.pem"], s.Data["admin-key.pem"], err = GetCertAndKeyPEM(s, pem, "ADMIN"); err != nil {
-		return fmt.Errorf("failed to generate admin cert or key: %w", err)
-	}
-
-	if s.Data["client.pem"], s.Data["client-key.pem"], err = GetCertAndKeyPEM(s, pem, "CLIENT"); err != nil {
-		return fmt.Errorf("failed to generate client cert or key: %w", err)
-	}
-
-	if err = ReplaceSecret(ctx, rc, s); err != nil {
-		return fmt.Errorf("failed to replace certificates: %w", err)
-	}
-
-	return nil
-}
-
-func GetClusterSecret(ctx context.Context, rc client.Client, c *opensearchv1alpha1.Cluster, postfix string) (*corev1.Secret, error) {
+func getClusterSecret(ctx context.Context, rc client.Client, c *opensearchv1alpha1.Cluster, postfix string) (*corev1.Secret, error) {
 	n := c.GetSubresourceNamespacedName()
 	n.Name = fmt.Sprintf("%s-%s", n.Name, postfix)
 	s := &corev1.Secret{
@@ -111,6 +46,45 @@ func GetClusterSecret(ctx context.Context, rc client.Client, c *opensearchv1alph
 	return s, nil
 }
 
+func GenClusterConfigs(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
+	s, err := getClusterSecret(ctx, rc, c, "securityconfigs")
+	if err != nil {
+		return fmt.Errorf("failed to get cluster secret object: %w", err)
+	}
+
+	sc := c.GetSecurityConfig()
+	if sc.Config != nil {
+		s.Data["config.yml"] = []byte(*sc.Config)
+	}
+
+	if sc.ActionGroups != nil {
+		s.Data["action_groups.yml"] = []byte(*sc.ActionGroups)
+	}
+
+	if sc.InternalUsers != nil {
+		s.Data["internal_users.yml"] = []byte(*sc.InternalUsers)
+	}
+
+	if sc.Roles != nil {
+		s.Data["roles.yml"] = []byte(*sc.Roles)
+	}
+
+	if sc.RolesMapping != nil {
+		s.Data["roles_mapping.yml"] = []byte(*sc.RolesMapping)
+	}
+
+	if sc.Tenants != nil {
+		s.Data["tenants.yml"] = []byte(*sc.Tenants)
+	}
+
+	if err = replaceSecret(ctx, rc, s); err != nil {
+		return fmt.Errorf("failed to replace securityconfigs: %w", err)
+	}
+
+	return nil
+
+}
+
 func CreateClusterHeadlessService(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster) error {
 	svc := c.GetHeadlessService()
 
@@ -118,7 +92,7 @@ func CreateClusterHeadlessService(ctx context.Context, rc client.Client, l logr.
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceService(ctx, rc, svc); err != nil {
+	if err := replaceService(ctx, rc, svc); err != nil {
 		return fmt.Errorf("failed to replace headless service: %w", err)
 	}
 

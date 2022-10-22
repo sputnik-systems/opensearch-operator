@@ -35,37 +35,8 @@ spec:
           spec:
             description: ClusterSpec defines the desired state of Cluster
             properties:
-              config:
-                description: Config is defining opensearch.yml config file
-                properties:
-                  plugins:
-                    properties:
-                      security:
-                        properties:
-                          ssl:
-                            properties:
-                              http:
-                                properties:
-                                  distinguishedName:
-                                    type: string
-                                  subjectAltNames:
-                                    items:
-                                      type: string
-                                    type: array
-                                type: object
-                              transport:
-                                properties:
-                                  distinguishedName:
-                                    type: string
-                                  subjectAltNames:
-                                    items:
-                                      type: string
-                                    type: array
-                                type: object
-                            type: object
-                        type: object
-                    type: object
-                type: object
+              adminCertificateSecretName:
+                type: string
               securityConfig:
                 description: SecurityConfig is defining opensearch security config
                   files
@@ -86,6 +57,8 @@ spec:
                   tenants:
                     type: string
                 type: object
+            required:
+            - adminCertificateSecretName
             type: object
           status:
             description: ClusterStatus defines the observed state of Cluster

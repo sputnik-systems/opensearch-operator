@@ -58,22 +58,17 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	l.Info("started Cluster reconciling")
 
 	c := &opensearchv1alpha1.Cluster{}
-	err := r.Get(ctx, req.NamespacedName, c)
-	if err != nil {
+	if err := r.Get(ctx, req.NamespacedName, c); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 
-		l.Error(err, "failed to get clickhouse backupi schedule object for reconclie")
+		l.Error(err, "failed to get Cluster object for reconclie")
 
 		return ctrl.Result{}, err
 	}
 
 	controllerutil.AddFinalizer(c, "foregroundDeletion")
-
-	if err := factory.GenClusterCerts(ctx, r.Client, l, c); err != nil {
-		return ctrl.Result{}, err
-	}
 
 	if err := factory.GenClusterConfigs(ctx, r.Client, l, c); err != nil {
 		return ctrl.Result{}, err

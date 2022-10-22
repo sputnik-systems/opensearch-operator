@@ -1,10 +1,76 @@
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-nodegroup-cluster-manager
+spec:
+  secretName: opensearch-nodegroup-cluster-manager-certs
+
+  duration: 1h
+  renewBefore: 45m
+
+  commonName: opensearch-cluster-logging-headless
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+
+  dnsNames:
+    - localhost
+    - opensearch-cluster-logging-headless
+    - opensearch-cluster-logging-headless.default
+    - opensearch-cluster-logging-headless.default.svc
+    - opensearch-nodegroup-cluster-manager
+    - opensearch-nodegroup-cluster-manager.default
+    - opensearch-nodegroup-cluster-manager.default.svc
+    - opensearch-nodegroup-cluster-manager-headless
+    - opensearch-nodegroup-cluster-manager-headless.default
+    - opensearch-nodegroup-cluster-manager-headless.default.svc
+
+  issuerRef:
+    name: opensearch-ca
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-nodegroup-data
+spec:
+  secretName: opensearch-nodegroup-data-certs
+
+  duration: 1h
+  renewBefore: 45m
+
+  commonName: opensearch-cluster-logging-headless
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+
+  dnsNames:
+    - localhost
+    - opensearch-nodegroup-data
+    - opensearch-nodegroup-data.default
+    - opensearch-nodegroup-data.default.svc
+    - opensearch-nodegroup-data-headless
+    - opensearch-nodegroup-data-headless.default
+    - opensearch-nodegroup-data-headless.default.svc
+
+  issuerRef:
+    name: opensearch-ca
+    kind: Issuer
+    group: cert-manager.io
+---
 apiVersion: opensearch.my.domain/v1alpha1
 kind: NodeGroup
 metadata:
   name: cluster-manager
 spec:
   clusterName: logging
+  nodeCertificateSecretName: opensearch-nodegroup-cluster-manager-certs
   replicas: 3
   plugins:
     - repository-s3
@@ -76,6 +142,7 @@ metadata:
   name: data
 spec:
   clusterName: logging
+  nodeCertificateSecretName: opensearch-nodegroup-data-certs
   replicas: 2
   roles:
     - ingest

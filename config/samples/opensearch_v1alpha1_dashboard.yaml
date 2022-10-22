@@ -1,9 +1,39 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-dashboard-default-client
+spec:
+  secretName: opensearch-dashboard-default-client-certs
+
+  duration: 1h
+  renewBefore: 45m
+
+  commonName: CLIENT
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+
+  dnsNames:
+    - localhost
+    - opensearch-dashboard-default
+    - opensearch-dashboard-default.default
+    - opensearch-dashboard-default.default.svc
+
+  issuerRef:
+    name: opensearch-ca
+    kind: Issuer
+    group: cert-manager.io
+---
 apiVersion: opensearch.my.domain/v1alpha1
 kind: Dashboard
 metadata:
   name: default
 spec:
   nodeGroupName: data
+  clientCertificateSecretName: opensearch-dashboard-default-client-certs
   replicas: 2
   extraEnvVars:
     - name: OPENSEARCH_USERNAME
