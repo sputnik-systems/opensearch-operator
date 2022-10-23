@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 var (
@@ -72,7 +73,7 @@ func GenDashboardConfig(ctx context.Context, rc client.Client, l logr.Logger, ng
 	}
 
 	cm.Data["opensearch_dashboards.yml"] = string(configBody.Bytes())
-	if err := ReplaceConfigMap(ctx, rc, cm); err != nil {
+	if err := replaceConfigMap(ctx, rc, cm); err != nil {
 		return fmt.Errorf("failed to replace configmap object: %w", err)
 	}
 
@@ -86,50 +87,26 @@ func CreateDashboardService(ctx context.Context, rc client.Client, l logr.Logger
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceService(ctx, rc, svc); err != nil {
+	if err := replaceService(ctx, rc, svc); err != nil {
 		return fmt.Errorf("failed to replace service: %w", err)
 	}
 
 	return nil
 }
 
-func CreateDashboardDeployment(ctx context.Context, rc client.Client, l logr.Logger, ng *opensearchv1alpha1.NodeGroup, d *opensearchv1alpha1.Dashboard) error {
-	volume := corev1.Volume{
-		Name: "cluster-certs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: ng.GetClusterCertificatesSecretName(),
-				Items: []corev1.KeyToPath{
-					{
-						Key:  "root-ca.pem",
-						Path: "root-ca.pem",
-					},
-					{
-						Key:  "client.pem",
-						Path: "client.pem",
-					},
-					{
-						Key:  "client-key.pem",
-						Path: "client-key.pem",
-					},
-				},
-			},
-		},
-	}
-
+func CreateDashboardDeployment(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, d *opensearchv1alpha1.Dashboard) error {
 	deploy := d.GetDeployment()
-	deploy.Spec.Template.Spec.Volumes = append(
-		deploy.Spec.Template.Spec.Volumes,
-		volume,
-	)
-
 	if err := controllerutil.SetOwnerReference(d, deploy, rc.Scheme()); err != nil {
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
 
-	if err := ReplaceDeployment(ctx, rc, deploy); err != nil {
-		return fmt.Errorf("failed to replace StatefulSet: %w", err)
+	if err := replaceDeployment(ctx, rc, deploy); err != nil {
+		return fmt.Errorf("failed to replace Deployment: %w", err)
 	}
+
+	obj := d.GetRuntimeObject()
+	certificate.Add(d.GetCertificateSecretName(), obj)
+	certificate.Add(c.GetAdminCertificateSecretName(), obj)
 
 	return nil
 }

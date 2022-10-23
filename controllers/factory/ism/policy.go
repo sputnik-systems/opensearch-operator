@@ -26,7 +26,7 @@ type PolicyMetadata struct {
 func AddPolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.IndexStateManagementPolicy, caPEM, certPEM, keyPEM []byte) error {
 	rootCAs := x509.NewCertPool()
 	if ok := rootCAs.AppendCertsFromPEM(caPEM); !ok {
-		return fmt.Errorf("failed to added root CA into cert pool")
+		return fmt.Errorf("failed to add root CA into cert pool")
 	}
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -91,7 +91,7 @@ func AddPolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.IndexSt
 func RemovePolicy(ctx context.Context, l logr.Logger, p *opensearchv1alpha1.IndexStateManagementPolicy, caPEM, certPEM, keyPEM []byte) error {
 	rootCAs := x509.NewCertPool()
 	if ok := rootCAs.AppendCertsFromPEM(caPEM); !ok {
-		return fmt.Errorf("failed to added root CA into cert pool")
+		return fmt.Errorf("failed to add root CA into cert pool")
 	}
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {

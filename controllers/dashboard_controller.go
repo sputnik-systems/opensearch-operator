@@ -33,6 +33,7 @@ import (
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 	"github.com/preved911/opensearch-operator/controllers/factory"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 // DashboardReconciler reconciles a Dashboard object
@@ -66,6 +67,8 @@ func (r *DashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Get(ctx, req.NamespacedName, d)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			certificate.Remove(d.GetRuntimeObject())
+
 			return ctrl.Result{}, nil
 		}
 
@@ -107,7 +110,25 @@ func (r *DashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if err := factory.CreateDashboardDeployment(ctx, r.Client, l, ng, d); err != nil {
+	n = types.NamespacedName{Namespace: d.Namespace, Name: ng.Spec.ClusterName}
+	c := &opensearchv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+	}
+	if err = r.Get(ctx, n, c); err != nil {
+		if errors.IsNotFound(err) {
+			l.Error(err, "corresponding NodeGroup resource not found")
+
+			return ctrl.Result{}, err
+		}
+
+		l.Error(err, "failed to get NodeGroup object for reconclie")
+
+		return ctrl.Result{}, err
+	}
+	if err := factory.CreateDashboardDeployment(ctx, r.Client, l, c, d); err != nil {
 		return ctrl.Result{}, err
 	}
 

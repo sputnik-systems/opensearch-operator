@@ -33,6 +33,7 @@ import (
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 	"github.com/preved911/opensearch-operator/controllers/factory"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 // NodeGroupReconciler reconciles a NodeGroup object
@@ -67,6 +68,8 @@ func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Get(ctx, req.NamespacedName, ng)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			certificate.Remove(ng.GetRuntimeObject())
+
 			return ctrl.Result{}, nil
 		}
 
@@ -112,10 +115,6 @@ func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if err := factory.GenNodeGroupCerts(ctx, r.Client, l, c, ng); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	if err := factory.CreateNodeGroupService(ctx, r.Client, l, ng); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -123,11 +122,6 @@ func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err := factory.CreateNodeGroupHeadlessService(ctx, r.Client, l, ng); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// ng.SetServiceNameStatus()
-	// if err := r.Status().Update(ctx, ng); err != nil {
-	// 	return ctrl.Result{}, err
-	// }
 
 	if err := factory.CreateNodeGroupStatefulSet(ctx, r.Client, l, c, ng); err != nil {
 		return ctrl.Result{}, err
@@ -147,7 +141,6 @@ func (r *NodeGroupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opensearchv1alpha1.NodeGroup{}).
 		Owns(&opensearchv1alpha1.Dashboard{}).
-		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).

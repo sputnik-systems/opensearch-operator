@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
-	"github.com/preved911/opensearch-operator/controllers/factory"
 	"github.com/preved911/opensearch-operator/controllers/factory/ism"
 )
 
@@ -102,7 +101,7 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, err
 	}
 
-	n.Name = p.GetClusterCertificatesSecretName()
+	n = types.NamespacedName{Namespace: p.Namespace, Name: c.GetAdminCertificateSecretName()}
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      n.Name,
@@ -120,18 +119,9 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 
 		return ctrl.Result{}, err
 	}
-	pem := c.GetConfig().GetTransportLayerSSL()
-	caPEM, _, err := factory.GetCaCertAndKeyPEM(s, pem)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	certPEM, keyPEM, err := factory.GetCertAndKeyPEM(s, pem, "ADMIN")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
 	if !p.DeletionTimestamp.IsZero() {
-		if err = ism.RemovePolicy(ctx, l, p, caPEM, certPEM, keyPEM); err != nil {
+		if err := ism.RemovePolicy(ctx, l, p, s.Data["ca.crt"], s.Data["tls.crt"], s.Data["tls.key"]); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -142,7 +132,7 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, err
 		}
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	sha1, err := p.GetPolicyBytesSHA1()
@@ -155,7 +145,7 @@ func (r *IndexStateManagementPolicyReconciler) Reconcile(ctx context.Context, re
 	}
 	p.Status.PolicySHA1 = sha1
 
-	if err := ism.AddPolicy(ctx, l, p, caPEM, certPEM, keyPEM); err != nil {
+	if err := ism.AddPolicy(ctx, l, p, s.Data["ca.crt"], s.Data["tls.crt"], s.Data["tls.key"]); err != nil {
 		return ctrl.Result{}, err
 	}
 

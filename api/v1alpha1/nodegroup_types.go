@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -33,12 +34,13 @@ import (
 // NodeGroupSpec defines the desired state of NodeGroup
 type NodeGroupSpec struct {
 	// ClusterName is specify which Cluster resource corresponds to this NodeGroup
-	ClusterName     string               `json:"clusterName"`
-	Roles           NodeGroupSpecRoles   `json:"roles"`
-	Plugins         []string             `json:"plugins,omitempty"`
-	ExtraConfigBody string               `json:"extraConfigBody,omitempty"`
-	ServiceSpec     NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
-	Replicas        int                  `json:"replicas"`
+	ClusterName               string               `json:"clusterName"`
+	NodeCertificateSecretName string               `json:"nodeCertificateSecretName"`
+	Roles                     NodeGroupSpecRoles   `json:"roles"`
+	Plugins                   []string             `json:"plugins,omitempty"`
+	ExtraConfigBody           string               `json:"extraConfigBody,omitempty"`
+	ServiceSpec               NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
+	Replicas                  int                  `json:"replicas"`
 	// +kubebuilder:default="Parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	// +kubebuilder:default="opensearchproject/opensearch:2.0.1"
@@ -129,10 +131,6 @@ func (ng *NodeGroup) GetDiscoverySeedHosts() string {
 	return fmt.Sprintf("%s-cluster-%s-headless", subresourceNamePrefix, ng.Spec.ClusterName)
 }
 
-func (ng *NodeGroup) GetClusterCertificatesSecretName() string {
-	return fmt.Sprintf("%s-cluster-%s-certificates", subresourceNamePrefix, ng.Spec.ClusterName)
-}
-
 func (ng *NodeGroup) SetServiceNameStatus() {
 	n := ng.GetSubresourceNamespacedName()
 	ng.Status.ServiceName = n.Name
@@ -218,6 +216,10 @@ func (r NodeGroupSpecRoles) String() string {
 	}
 
 	return strings.Join(roles, ",")
+}
+
+func (ng *NodeGroup) GetCertificateSecretName() string {
+	return ng.Spec.NodeCertificateSecretName
 }
 
 func (ng *NodeGroup) GetPodSecurityContext() *corev1.PodSecurityContext {
@@ -321,34 +323,19 @@ func (ng *NodeGroup) GetVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "docker-entrypoint.sh",
 		},
 		{
-			Name:      "cluster-certs",
-			MountPath: "/usr/share/opensearch/config/root-ca.pem",
-			SubPath:   "root-ca.pem",
-		},
-		{
-			Name:      "cluster-certs",
-			MountPath: "/usr/share/opensearch/config/root-ca-key.pem",
-			SubPath:   "root-ca-key.pem",
-		},
-		{
-			Name:      "cluster-certs",
-			MountPath: "/usr/share/opensearch/config/client.pem",
-			SubPath:   "client.pem",
-		},
-		{
-			Name:      "cluster-certs",
-			MountPath: "/usr/share/opensearch/config/client-key.pem",
-			SubPath:   "client-key.pem",
-		},
-		{
-			Name:      "cluster-certs",
+			Name:      "admin-certs",
 			MountPath: "/usr/share/opensearch/config/admin.pem",
 			SubPath:   "admin.pem",
 		},
 		{
-			Name:      "cluster-certs",
+			Name:      "admin-certs",
 			MountPath: "/usr/share/opensearch/config/admin-key.pem",
 			SubPath:   "admin-key.pem",
+		},
+		{
+			Name:      "nodegroup-certs",
+			MountPath: "/usr/share/opensearch/config/root-ca.pem",
+			SubPath:   "root-ca.pem",
 		},
 		{
 			Name:      "nodegroup-certs",
@@ -419,51 +406,21 @@ func (ng *NodeGroup) GetVolumes() []corev1.Volume {
 
 	volumes := []corev1.Volume{
 		{
-			Name: "cluster-certs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: ng.GetClusterCertificatesSecretName(),
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "root-ca.pem",
-							Path: "root-ca.pem",
-						},
-						{
-							Key:  "root-ca-key.pem",
-							Path: "root-ca-key.pem",
-						},
-						{
-							Key:  "client.pem",
-							Path: "client.pem",
-						},
-						{
-							Key:  "client-key.pem",
-							Path: "client-key.pem",
-						},
-						{
-							Key:  "admin.pem",
-							Path: "admin.pem",
-						},
-						{
-							Key:  "admin-key.pem",
-							Path: "admin-key.pem",
-						},
-					},
-				},
-			},
-		},
-		{
 			Name: "nodegroup-certs",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: n.Name,
+					SecretName: ng.Spec.NodeCertificateSecretName,
 					Items: []corev1.KeyToPath{
 						{
-							Key:  "esnode.pem",
+							Key:  "ca.crt",
+							Path: "root-ca.pem",
+						},
+						{
+							Key:  "tls.crt",
 							Path: "esnode.pem",
 						},
 						{
-							Key:  "esnode-key.pem",
+							Key:  "tls.key",
 							Path: "esnode-key.pem",
 						},
 					},
@@ -603,4 +560,15 @@ func (ng *NodeGroup) GetStatefulSet() *appsv1.StatefulSet {
 	}
 
 	return sts
+}
+
+func (ng *NodeGroup) GetRuntimeObject() client.Object {
+	n := ng.GetSubresourceNamespacedName()
+
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      n.Name,
+			Namespace: n.Namespace,
+		},
+	}
 }

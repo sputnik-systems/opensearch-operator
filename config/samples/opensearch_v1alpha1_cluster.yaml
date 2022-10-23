@@ -1,14 +1,76 @@
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: self-signed
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-ca
+spec:
+  isCA: true
+  commonName: opensearch-ca
+  secretName: opensearch-ca-certs
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: self-signed
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: opensearch-ca
+spec:
+  ca:
+    secretName: opensearch-ca-certs
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opensearch-cluster-logging-admin
+spec:
+  secretName: opensearch-cluster-logging-admin-certs
+
+  duration: 1h
+  renewBefore: 45m
+  # subject:
+  #   organizations:
+  #     - jetstack
+
+  commonName: ADMIN
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS8
+    size: 2048
+  # usages:
+  #   - server auth
+  #   - client auth
+  # # At least one of a DNS Name, URI, or IP address is required.
+  # dnsNames:
+  #   - example.com
+  #   - www.example.com
+  issuerRef:
+    name: opensearch-ca
+    kind: Issuer
+    group: cert-manager.io
+---
 apiVersion: opensearch.my.domain/v1alpha1
 kind: Cluster
 metadata:
   name: logging
 spec:
-  config:
-    plugins:
-      security:
-        ssl:
-          transport:
-            distinguishedName: /OU=SSL,/O=Test,/L=Test,/C=DE
+  # clusterCertificateSecretNames:
+  #   ca: opensearch-ca-certs
+  #   admin: opensearch-admin-certs
+  #   client: opensearch-client-certs
+  adminCertificateSecretName: opensearch-cluster-logging-admin-certs
   securityConfig:
     internal_users: |
       ---
