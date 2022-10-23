@@ -33,6 +33,7 @@ import (
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 	"github.com/preved911/opensearch-operator/controllers/factory"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 // DashboardReconciler reconciles a Dashboard object
@@ -66,6 +67,8 @@ func (r *DashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Get(ctx, req.NamespacedName, d)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			certificate.Remove(d.GetRuntimeObject())
+
 			return ctrl.Result{}, nil
 		}
 

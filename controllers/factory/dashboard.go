@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 var (
@@ -95,9 +96,6 @@ func CreateDashboardService(ctx context.Context, rc client.Client, l logr.Logger
 
 func CreateDashboardDeployment(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, d *opensearchv1alpha1.Dashboard) error {
 	deploy := d.GetDeployment()
-	deploy.ObjectMeta.Labels["opensearch.my.domain/dashboard-certificate-secret-name"] = d.GetCertificateSecretName()
-	deploy.ObjectMeta.Labels["opensearch.my.domain/admin-certificate-secret-name"] = c.GetAdminCertificateSecretName()
-
 	if err := controllerutil.SetOwnerReference(d, deploy, rc.Scheme()); err != nil {
 		return fmt.Errorf("failed to update ownerReference: %w", err)
 	}
@@ -105,6 +103,10 @@ func CreateDashboardDeployment(ctx context.Context, rc client.Client, l logr.Log
 	if err := replaceDeployment(ctx, rc, deploy); err != nil {
 		return fmt.Errorf("failed to replace Deployment: %w", err)
 	}
+
+	obj := d.GetRuntimeObject()
+	certificate.Add(d.GetCertificateSecretName(), obj)
+	certificate.Add(c.GetAdminCertificateSecretName(), obj)
 
 	return nil
 }

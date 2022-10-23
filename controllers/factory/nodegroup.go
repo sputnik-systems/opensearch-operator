@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 func CreateNodeGroupService(ctx context.Context, rc client.Client, l logr.Logger, ng *opensearchv1alpha1.NodeGroup) error {
@@ -68,9 +69,6 @@ func CreateNodeGroupStatefulSet(ctx context.Context, rc client.Client, l logr.Lo
 			},
 		},
 	})
-
-	sts.ObjectMeta.Labels["opensearch.my.domain/nogegroup-certificate-secret-name"] = ng.GetCertificateSecretName()
-	sts.ObjectMeta.Labels["opensearch.my.domain/admin-certificate-secret-name"] = c.GetAdminCertificateSecretName()
 
 	if sc := c.GetSecurityConfig(); sc.Enabled {
 		vn := "cluster-security-config"
@@ -128,6 +126,10 @@ func CreateNodeGroupStatefulSet(ctx context.Context, rc client.Client, l logr.Lo
 	if err := replaceStatefulSet(ctx, rc, sts); err != nil {
 		return fmt.Errorf("failed to replace StatefulSet: %w", err)
 	}
+
+	obj := ng.GetRuntimeObject()
+	certificate.Add(ng.GetCertificateSecretName(), obj)
+	certificate.Add(c.GetAdminCertificateSecretName(), obj)
 
 	return nil
 }

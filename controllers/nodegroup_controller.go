@@ -33,6 +33,7 @@ import (
 
 	opensearchv1alpha1 "github.com/preved911/opensearch-operator/api/v1alpha1"
 	"github.com/preved911/opensearch-operator/controllers/factory"
+	"github.com/preved911/opensearch-operator/controllers/factory/certificate"
 )
 
 // NodeGroupReconciler reconciles a NodeGroup object
@@ -67,6 +68,8 @@ func (r *NodeGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err := r.Get(ctx, req.NamespacedName, ng)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			certificate.Remove(ng.GetRuntimeObject())
+
 			return ctrl.Result{}, nil
 		}
 
