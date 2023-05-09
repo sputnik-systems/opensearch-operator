@@ -1,4 +1,4 @@
-apiVersion: opensearch.my.domain/v1alpha1
+apiVersion: opensearch.sputnik.systems/v1alpha1
 kind: IndexStateManagementPolicy
 metadata:
   name: example

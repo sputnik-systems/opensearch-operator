@@ -81,8 +81,8 @@ func (c Cluster) GetSubresourceLabels() map[string]string {
 		labels = make(map[string]string)
 	}
 
-	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/cluster-name"] = c.GetName()
+	labels["opensearch.sputnik.systems/managed-by"] = "opensearch-operator"
+	labels["opensearch.sputnik.systems/cluster-name"] = c.GetName()
 
 	return labels
 }
@@ -112,7 +112,7 @@ type SecurityConfigSpec struct {
 func (c *Cluster) GetHeadlessService() *corev1.Service {
 	n := c.GetSubresourceNamespacedName()
 	l := c.GetSubresourceLabels()
-	l["opensearch.my.domain/nogegroup-cluster-manager-role"] = "exists"
+	l["opensearch.sputnik.systems/nogegroup-cluster-manager-role"] = "exists"
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      n.Name + "-headless",

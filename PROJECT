@@ -1,4 +1,4 @@
-domain: my.domain
+domain: sputnik.systems
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -11,7 +11,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: my.domain
+  domain: sputnik.systems
   group: opensearch
   kind: Cluster
   path: github.com/preved911/opensearch-operator/api/v1alpha1
@@ -20,7 +20,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: my.domain
+  domain: sputnik.systems
   group: opensearch
   kind: NodeGroup
   path: github.com/preved911/opensearch-operator/api/v1alpha1
@@ -29,7 +29,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: my.domain
+  domain: sputnik.systems
   group: opensearch
   kind: Dashboard
   path: github.com/preved911/opensearch-operator/api/v1alpha1
@@ -38,7 +38,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: my.domain
+  domain: sputnik.systems
   group: opensearch
   kind: IndexStateManagementPolicy
   path: github.com/preved911/opensearch-operator/api/v1alpha1

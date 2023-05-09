@@ -5,7 +5,7 @@ metadata:
   name: dashboard-editor-role
 rules:
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - dashboards
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - dashboards/status
   verbs:

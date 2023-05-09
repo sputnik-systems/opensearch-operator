@@ -5,7 +5,7 @@ metadata:
   name: nodegroup-editor-role
 rules:
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - nodegroups
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - nodegroups/status
   verbs:

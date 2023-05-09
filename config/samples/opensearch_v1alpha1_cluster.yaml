@@ -61,7 +61,7 @@ spec:
     kind: Issuer
     group: cert-manager.io
 ---
-apiVersion: opensearch.my.domain/v1alpha1
+apiVersion: opensearch.sputnik.systems/v1alpha1
 kind: Cluster
 metadata:
   name: logging
