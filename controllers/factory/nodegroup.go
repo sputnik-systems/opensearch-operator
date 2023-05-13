@@ -241,7 +241,7 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 	if _, ok := cm.Data["opensearch.yml"]; !ok {
 		cm.Data = make(map[string]string)
 	}
-	cm.Data["opensearch.yml"] = string(body.Bytes())
+	cm.Data["opensearch.yml"] = body.String()
 
 	body = new(bytes.Buffer)
 	tmpl, err = template.New("").Parse(nodeGroupEntrypointTemplate)
@@ -252,7 +252,7 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 	if err := tmpl.Execute(body, ng.Spec.Plugins); err != nil {
 		return fmt.Errorf("failed to execute docker-entrypoint.sh template: %w", err)
 	}
-	cm.Data["docker-entrypoint.sh"] = string(body.Bytes())
+	cm.Data["docker-entrypoint.sh"] = body.String()
 
 	if err := replaceConfigMap(ctx, rc, cm); err != nil {
 		return fmt.Errorf("failed to replace configmap object: %w", err)
