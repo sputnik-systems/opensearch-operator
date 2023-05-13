@@ -72,7 +72,7 @@ func GenDashboardConfig(ctx context.Context, rc client.Client, l logr.Logger, ng
 		cm.Data = make(map[string]string)
 	}
 
-	cm.Data["opensearch_dashboards.yml"] = string(configBody.Bytes())
+	cm.Data["opensearch_dashboards.yml"] = configBody.String()
 	if err := replaceConfigMap(ctx, rc, cm); err != nil {
 		return fmt.Errorf("failed to replace configmap object: %w", err)
 	}
