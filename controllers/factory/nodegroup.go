@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
 	"path/filepath"
+	"text/template"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -192,6 +192,14 @@ bash opensearch-docker-entrypoint.sh
 `
 )
 
+type NodeGroupConfig struct {
+	DiscoverySeedHosts         string
+	InitialClusterManagerNodes []string
+	NodeGroupDN                string
+	AdminDN                    string
+	ExtraConfigBody            string
+}
+
 func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c *opensearchv1alpha1.Cluster, ng *opensearchv1alpha1.NodeGroup) error {
 	n := ng.GetSubresourceNamespacedName()
 	cm := &corev1.ConfigMap{
@@ -220,13 +228,7 @@ func GenNodeGroupConfig(ctx context.Context, rc client.Client, l logr.Logger, c 
 	if err != nil {
 		return fmt.Errorf("failed to parse clsuter admin certificate subject: %w", err)
 	}
-	values := struct {
-		DiscoverySeedHosts         string
-		InitialClusterManagerNodes []string
-		NodeGroupDN                string
-		AdminDN                    string
-		ExtraConfigBody            string
-	}{
+	values := NodeGroupConfig{
 		DiscoverySeedHosts:         ng.GetDiscoverySeedHosts(),
 		InitialClusterManagerNodes: c.Status.InitialClusterManagerNodes,
 		NodeGroupDN:                ngcs,
