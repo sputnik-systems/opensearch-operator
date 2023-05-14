@@ -5,21 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: indexstatemanagementpolicies.opensearch.my.domain
+  name: clusters.opensearch.sputnik.systems
 spec:
-  group: opensearch.my.domain
+  group: opensearch.sputnik.systems
   names:
-    kind: IndexStateManagementPolicy
-    listKind: IndexStateManagementPolicyList
-    plural: indexstatemanagementpolicies
-    singular: indexstatemanagementpolicy
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: IndexStateManagementPolicy is the Schema for the indexstatemanagementpolicies
-          API
+        description: Cluster is the Schema for the clusters API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,37 +33,40 @@ spec:
           metadata:
             type: object
           spec:
-            description: IndexStateManagementPolicySpec defines the desired state
-              of IndexStateManagementPolicy
+            description: ClusterSpec defines the desired state of Cluster
             properties:
-              body:
+              adminCertificateSecretName:
                 type: string
-              clusterName:
-                type: string
+              securityConfig:
+                description: SecurityConfig is defining opensearch security config
+                  files
+                properties:
+                  action_groups:
+                    type: string
+                  config:
+                    type: string
+                  enabled:
+                    default: true
+                    type: boolean
+                  internal_users:
+                    type: string
+                  roles:
+                    type: string
+                  roles_mapping:
+                    type: string
+                  tenants:
+                    type: string
+                type: object
             required:
-            - body
-            - clusterName
+            - adminCertificateSecretName
             type: object
           status:
-            description: IndexStateManagementPolicyStatus defines the observed state
-              of IndexStateManagementPolicy
+            description: ClusterStatus defines the observed state of Cluster
             properties:
-              policySHA1:
-                type: string
-              primaryTerm:
-                format: int64
-                type: integer
-              seqNo:
-                format: int64
-                type: integer
-              version:
-                format: int64
-                type: integer
-            required:
-            - policySHA1
-            - primaryTerm
-            - seqNo
-            - version
+              initial_cluster_manager_nodes:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

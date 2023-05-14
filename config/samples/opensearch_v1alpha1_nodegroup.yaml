@@ -64,7 +64,7 @@ spec:
     kind: Issuer
     group: cert-manager.io
 ---
-apiVersion: opensearch.my.domain/v1alpha1
+apiVersion: opensearch.sputnik.systems/v1alpha1
 kind: NodeGroup
 metadata:
   name: cluster-manager
@@ -83,7 +83,7 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchExpressions:
-          - key: opensearch.my.domain/nodegroup-name
+          - key: opensearch.sputnik.systems/nodegroup-name
             operator: In
             values:
             - cluster-manager
@@ -136,7 +136,7 @@ spec:
       requests:
         storage: 8Gi
 ---
-apiVersion: opensearch.my.domain/v1alpha1
+apiVersion: opensearch.sputnik.systems/v1alpha1
 kind: NodeGroup
 metadata:
   name: data
@@ -156,7 +156,7 @@ spec:
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
           matchExpressions:
-          - key: opensearch.my.domain/nodegroup-name
+          - key: opensearch.sputnik.systems/nodegroup-name
             operator: In
             values:
             - data

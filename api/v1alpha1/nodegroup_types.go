@@ -114,13 +114,13 @@ func (ng *NodeGroup) GetSubresourceLabels() map[string]string {
 		labels = make(map[string]string)
 	}
 
-	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/cluster-name"] = ng.Spec.ClusterName
-	labels["opensearch.my.domain/nodegroup-name"] = ng.GetName()
+	labels["opensearch.sputnik.systems/managed-by"] = "opensearch-operator"
+	labels["opensearch.sputnik.systems/cluster-name"] = ng.Spec.ClusterName
+	labels["opensearch.sputnik.systems/nodegroup-name"] = ng.GetName()
 
 	for _, role := range ng.Spec.Roles {
 		if role == NodeGroupSpecRole("master") {
-			labels["opensearch.my.domain/nogegroup-master-role"] = "exists"
+			labels["opensearch.sputnik.systems/nogegroup-master-role"] = "exists"
 		}
 	}
 
@@ -518,7 +518,7 @@ func (ng *NodeGroup) GetStatefulSet() *appsv1.StatefulSet {
 	labels := ng.GetSubresourceLabels()
 	roles := ng.GetRoles()
 	if roles.IsClusterManager() {
-		labels["opensearch.my.domain/nogegroup-cluster-manager-role"] = "exists"
+		labels["opensearch.sputnik.systems/nogegroup-cluster-manager-role"] = "exists"
 	}
 
 	replicas := int32(ng.GetReplicas())

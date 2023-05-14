@@ -92,8 +92,8 @@ func (d *Dashboard) GetSubresourceLabels() map[string]string {
 		labels = make(map[string]string)
 	}
 
-	labels["opensearch.my.domain/managed-by"] = "opensearch-operator"
-	labels["opensearch.my.domain/dashboard-name"] = d.GetName()
+	labels["opensearch.sputnik.systems/managed-by"] = "opensearch-operator"
+	labels["opensearch.sputnik.systems/dashboard-name"] = d.GetName()
 
 	return labels
 }

@@ -90,7 +90,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - clusters
   verbs:
@@ -102,13 +102,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - clusters/finalizers
   verbs:
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - clusters/status
   verbs:
@@ -116,7 +116,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - dashboards
   verbs:
@@ -128,13 +128,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - dashboards/finalizers
   verbs:
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - dashboards/status
   verbs:
@@ -142,7 +142,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - indexstatemanagementpolicies
   verbs:
@@ -154,13 +154,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - indexstatemanagementpolicies/finalizers
   verbs:
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - indexstatemanagementpolicies/status
   verbs:
@@ -168,7 +168,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - nodegroups
   verbs:
@@ -180,13 +180,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - nodegroups/finalizers
   verbs:
   - update
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - nodegroups/status
   verbs:

@@ -80,14 +80,14 @@ func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if sts, ok := obj.(*appsv1.StatefulSet); ok {
 			// sts.Spec.Template.ObjectMeta.Annotations
 			sts.Spec.Template.Annotations = map[string]string{
-				"opensearch.my.domain/restartedAt": time.Now().Format(time.RFC3339),
+				"opensearch.sputnik.systems/restartedAt": time.Now().Format(time.RFC3339),
 			}
 			if err := r.Update(ctx, sts); err != nil {
 				return ctrl.Result{}, err
 			}
 		} else if deploy, ok := obj.(*appsv1.Deployment); ok {
 			deploy.Spec.Template.Annotations = map[string]string{
-				"opensearch.my.domain/restartedAt": time.Now().Format(time.RFC3339),
+				"opensearch.sputnik.systems/restartedAt": time.Now().Format(time.RFC3339),
 			}
 			if err := r.Update(ctx, deploy); err != nil {
 				return ctrl.Result{}, err

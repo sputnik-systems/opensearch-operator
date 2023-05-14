@@ -5,7 +5,7 @@ metadata:
   name: cluster-editor-role
 rules:
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - clusters
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - opensearch.my.domain
+  - opensearch.sputnik.systems
   resources:
   - clusters/status
   verbs:

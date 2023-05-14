@@ -37,9 +37,9 @@ type ClusterReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=clusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=clusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=clusters/finalizers,verbs=update
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=clusters,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=clusters/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=clusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=service,verbs=get;list;watch;create;update;patch;delete
 

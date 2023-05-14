@@ -7,7 +7,9 @@ before:
     - go generate ./...
 
 builds:
-  - env:
+  - id: controller
+    binary: manager
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -19,10 +21,12 @@ archives:
     name_template: '{{ .Binary }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}'
 
 kos:
-  - repository: "ghcr.io/sputnik-systems/opensearch-operator"
+  - build: controller
+    repository: "ghcr.io/sputnik-systems"
     tags:
       - latest
       - "{{ .Tag }}"
+    bare: true
     preserve_import_paths: false
     base_import_paths: true
     platforms:

@@ -42,9 +42,9 @@ type DashboardReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=dashboards/finalizers,verbs=update
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=dashboards,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=dashboards/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=dashboards/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete

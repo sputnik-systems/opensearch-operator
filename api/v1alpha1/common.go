@@ -5,7 +5,7 @@ const (
 	certLifeTimeYears     = 1
 	subresourceNamePrefix = "opensearch"
 
-	IndexStateManagementPolicyProtectionFinalizer = "opensearch.my.domain/ism-policy-protection"
+	IndexStateManagementPolicyProtectionFinalizer = "opensearch.sputnik.systems/ism-policy-protection"
 )
 
 var (

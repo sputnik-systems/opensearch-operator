@@ -42,9 +42,9 @@ type NodeGroupReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=opensearch.my.domain,resources=nodegroups/finalizers,verbs=update
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=nodegroups,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=nodegroups/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=opensearch.sputnik.systems,resources=nodegroups/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
