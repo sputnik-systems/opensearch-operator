@@ -35,6 +35,7 @@ import (
 type DashboardSpec struct {
 	NodeGroupName               string               `json:"nodeGroupName"`
 	ClientCertificateSecretName string               `json:"clientCertificateSecretName"`
+	ExtraConfigBody             string               `json:"extraConfigBody,omitempty"`
 	Replicas                    int                  `json:"replicas"`
 	ServiceSpec                 NodeGroupServiceSpec `json:"serviceSpec,omitempty"`
 	// +kubebuilder:default="opensearchproject/opensearch-dashboards:2.0.1"

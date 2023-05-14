@@ -37,6 +37,8 @@ spec:
             properties:
               clientCertificateSecretName:
                 type: string
+              extraConfigBody:
+                type: string
               extraEnvVars:
                 items:
                   description: EnvVar represents an environment variable present in

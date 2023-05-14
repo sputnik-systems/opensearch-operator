@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"html/template"
+	"text/template"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -32,11 +32,14 @@ opensearch.ssl.certificateAuthorities: [ "/usr/share/opensearch-dashboards/confi
 # opensearch_security.multitenancy.tenants.preferred: ["Private", "Global"]
 opensearch_security.readonly_mode.roles: ["kibana_read_only"]
 opensearch_security.cookie.secure: true
+
+{{ .ExtraConfigBody }}
 `
 )
 
 type DashboardConfig struct {
 	NodeGroupServiceName string
+	ExtraConfigBody      string
 }
 
 func GenDashboardConfig(ctx context.Context, rc client.Client, l logr.Logger, ng *opensearchv1alpha1.NodeGroup, d *opensearchv1alpha1.Dashboard) error {
@@ -61,6 +64,7 @@ func GenDashboardConfig(ctx context.Context, rc client.Client, l logr.Logger, ng
 
 	cvs := DashboardConfig{
 		NodeGroupServiceName: ng.Status.ServiceName,
+		ExtraConfigBody:      d.Spec.ExtraConfigBody,
 	}
 
 	configBody := new(bytes.Buffer)
